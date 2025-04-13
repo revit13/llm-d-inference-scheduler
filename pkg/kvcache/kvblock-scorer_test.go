@@ -1,16 +1,16 @@
-package client_test
+package kvcache_test
 
 import (
 	"testing"
 
-	"github.com/neuralmagic/distributed-kv-cache/pkg/client"
+	"github.com/neuralmagic/distributed-kv-cache/pkg/kvcache"
 
 	"github.com/stretchr/testify/assert"
 )
 
 // TestLongestPrefixScorer verifies scoring based on consecutive block hits from the start.
 func TestLongestPrefixScorer(t *testing.T) {
-	scorer := &client.LongestPrefixScorer{}
+	scorer := &kvcache.LongestPrefixScorer{}
 	blockKeys := []string{"b1", "b2", "b3", "b4", "b5", "b6"}
 
 	hitmap := map[string]string{
@@ -36,7 +36,7 @@ func TestLongestPrefixScorer(t *testing.T) {
 
 // TestHighestBlockHitScorer verifies scoring based on the highest index where a pod has a block.
 func TestHighestBlockHitScorer(t *testing.T) {
-	scorer := &client.HighestBlockHitScorer{}
+	scorer := &kvcache.HighestBlockHitScorer{}
 	blockKeys := []string{"b1", "b2", "b3", "b4", "b5"}
 
 	hitmap := map[string]string{
@@ -60,7 +60,7 @@ func TestHighestBlockHitScorer(t *testing.T) {
 
 // TestCoverageBasedScorer verifies scoring based on total number of non-consecutive block hits.
 func TestCoverageBasedScorer(t *testing.T) {
-	scorer := &client.CoverageBasedScorer{}
+	scorer := &kvcache.CoverageBasedScorer{}
 	blockKeys := []string{"b1", "b2", "b3", "b4", "b5"}
 
 	hitmap := map[string]string{

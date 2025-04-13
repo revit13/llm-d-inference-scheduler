@@ -1,4 +1,4 @@
-package kvindex
+package kvcache
 
 import (
 	"strings"

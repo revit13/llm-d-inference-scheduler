@@ -1,8 +1,14 @@
-package client
+package kvcache
 
 import (
 	"fmt"
 )
+
+// PodScore couples a pod identifier (IP) with a score.
+type PodScore struct {
+	Name  string
+	Score float64
+}
 
 // KVScoringStrategy defines the strategy used to score pods for KV cache block reuse.
 type KVScoringStrategy string

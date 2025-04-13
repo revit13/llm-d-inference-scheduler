@@ -1,11 +1,14 @@
-package kvindex
+package kvcache
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+
+	"k8s.io/klog/v2"
 
 	"github.com/neuralmagic/distributed-kv-cache/pkg/utils"
 )
@@ -28,12 +31,6 @@ type KVBlockKey struct {
 
 // String returns a string representation of the CacheEngineKey.
 func (c KVBlockKey) String() string {
-	/*
-	   def to_string(self):
-	       return f"{self.fmt}@{self.model_name}@{self.world_size}"\
-	           f"@{self.worker_id}@{self.chunk_hash}"
-	*/
-
 	return fmt.Sprintf("%s@%s@%d@%d@%s", c.Fmt, c.ModelName, c.WorldSize, c.WorkerID, c.ChunkHash)
 }
 
@@ -80,8 +77,7 @@ func (db *ChunkedTokenDatabase) hash(tokens []uint32, prefixHash string) string 
 		// convert token to int64 for binary consistency
 		// LittleEndian is important to match the Python code
 		if err := binary.Write(buf, binary.LittleEndian, int64(token)); err != nil {
-			// In production code, you might handle this error appropriately.
-			panic(err)
+			klog.FromContext(context.Background()).Error(err, "failed to write token to buffer")
 		}
 	}
 	sum := sha256.Sum256(buf.Bytes())

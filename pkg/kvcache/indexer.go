@@ -1,4 +1,4 @@
-package client
+package kvcache
 
 import (
 	"context"
@@ -7,44 +7,31 @@ import (
 
 	"k8s.io/klog/v2"
 
-	"github.com/neuralmagic/distributed-kv-cache/pkg/kvindex"
 	"github.com/neuralmagic/distributed-kv-cache/pkg/tokenization"
 
 	"github.com/redis/go-redis/v9"
 )
 
-// PodScore couples a pod identifier (IP) with a score.
-type PodScore struct {
-	Name  string
-	Score float64
-}
-
 // Config holds the configuration for the KVCacheIndex.
 type Config struct {
-	kvindex.LMCacheEngineConfig
-	kvindex.LMCacheEngineMetadata
+	LMCacheEngineConfig
+	LMCacheEngineMetadata
 
 	ScoringStrategy KVScoringStrategy
 }
 
-// KVCacheIndex abstracts the Distributed KVCache Indexing module.
-type KVCacheIndex interface {
-	Run(ctx context.Context)
-	GetPodScores(ctx context.Context, prompt, modelName string) ([]PodScore, error)
-}
-
 // KVCacheIndexer is a concrete implementation of the KVCacheIndex interface.
 type KVCacheIndexer struct {
-	tokensIndexer   tokenization.Indexer   // gets tokens for a prompt
-	tokensProcessor kvindex.TokenProcessor // turns tokens to kv block keys
-	kvBlockIndexer  kvindex.KVBlockIndexer // looks up pods for block keys
-	kvBlockScorer   KVBlockScorer          // scores pods based on block hits
+	tokensIndexer   tokenization.Indexer // gets tokens for a prompt
+	tokensProcessor TokenProcessor       // turns tokens to kv block keys
+	kvBlockIndexer  KVBlockIndexer       // looks up pods for block keys
+	kvBlockScorer   KVBlockScorer        // scores pods based on block hits
 
 	tokenizersPool *tokenization.Pool
 }
 
 // NewKVCacheIndexer creates a KVCacheIndex given a Config.
-func NewKVCacheIndexer(cfg Config) (KVCacheIndex, error) {
+func NewKVCacheIndexer(cfg Config) (*KVCacheIndexer, error) {
 	scorer, err := NewKVBlockScorer(cfg.ScoringStrategy)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create KVBlockScorer: %w", err)
@@ -65,8 +52,8 @@ func NewKVCacheIndexer(cfg Config) (KVCacheIndex, error) {
 	tokensIndexer := tokenization.NewContainedTokenStore()
 	return &KVCacheIndexer{
 		tokensIndexer:   tokensIndexer,
-		tokensProcessor: kvindex.NewChunkedTokenDatabase(cfg.LMCacheEngineConfig, cfg.LMCacheEngineMetadata),
-		kvBlockIndexer:  kvindex.NewRedisKVBlockIndexer(redisClient),
+		tokensProcessor: NewChunkedTokenDatabase(cfg.LMCacheEngineConfig, cfg.LMCacheEngineMetadata),
+		kvBlockIndexer:  NewRedisKVBlockIndexer(redisClient),
 		kvBlockScorer:   scorer,
 		tokenizersPool:  tokenization.NewTokenizationPool(5, tokensIndexer),
 	}, nil
