@@ -1,0 +1,80 @@
+name: LGTM Command Worker
+on:
+  repository_dispatch:
+    types: [lgtm-command]
+
+jobs:
+  lgtm-logic:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # --- STEP 1: VERIFY APPROVER (OWNERS File) ---
+      - name: Verify User in OWNERS
+        id: check_perm
+        env:
+          ACTOR: ${{ github.event.client_payload.github.actor }}
+        run: |
+          echo "DEBUG: Checking authorization for user: $ACTOR"
+          if [ ! -f "OWNERS" ]; then
+            echo "Error: OWNERS file not found."
+            echo "authorized=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          APPROVERS=$(yq '.approvers[]' OWNERS)
+          echo "DEBUG: Approvers list: $APPROVERS"
+          if echo "$APPROVERS" | grep -Fqx "$ACTOR"; then
+            echo "DEBUG: User $ACTOR is authorized"
+            echo "authorized=true" >> $GITHUB_OUTPUT
+          else
+            echo "DEBUG: User $ACTOR is NOT authorized"
+            echo "authorized=false" >> $GITHUB_OUTPUT
+          fi
+          echo "DEBUG: Authorization check output: $(cat $GITHUB_OUTPUT | grep authorized || echo 'none')"
+
+      # --- STEP 2: CHECK BLOCKING LABELS ---
+      - name: Check for Blocking Labels
+        if: steps.check_perm.outputs.authorized == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.client_payload.github.payload.issue.html_url }}
+        run: |
+          LABELS=$(gh pr view "$PR_URL" --json labels --jq '.labels[].name')
+          if echo "$LABELS" | grep -Eiq "^(hold|wip|do-not-merge)$"; then
+            echo "::error::PR is blocked by label."
+            gh issue comment "$PR_URL" --body "⚠️ **Merge Blocked**: Please remove the \`hold\`, \`wip\`, or \`do-not-merge\` label before merging."
+            exit 1
+          fi
+
+      # --- STEP 3: MERGE (Only runs if Step 2 passed) ---
+      - name: Apply Label & Merge
+        if: steps.check_perm.outputs.authorized == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.client_payload.github.payload.issue.number }}
+          PR_URL: ${{ github.event.client_payload.github.payload.issue.html_url }}
+        run: |
+          gh issue edit "$PR_NUMBER" --add-label "lgtm"
+          gh pr merge --auto --squash "$PR_URL"
+
+      # --- STEP 4: FEEDBACK ---
+      - name: React with Rocket
+        if: steps.check_perm.outputs.authorized == 'true'
+        uses: peter-evans/create-or-update-comment@v3
+        with:
+          comment-id: ${{ github.event.client_payload.github.payload.comment.id }}
+          reaction-type: rocket
+
+      - name: Notify Unauthorized
+        if: steps.check_perm.outputs.authorized == 'false'
+        uses: peter-evans/create-or-update-comment@v3
+        with:
+          issue-number: ${{ github.event.client_payload.github.payload.issue.number }}
+          body: "🚫 **Authorization Failed**: You are not an approver."
+          reaction-type: confused
