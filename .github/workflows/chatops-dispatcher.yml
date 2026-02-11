@@ -15,4 +15,4 @@ jobs:
           # 1. Basic Security: Only allow users with 'write' access to even trigger this
           permission: write
           issue-type: pull-request
-          reaction-type: none
+          reactions: false
