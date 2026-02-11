@@ -82,7 +82,7 @@ jobs:
         uses: peter-evans/create-or-update-comment@v3
         with:
           comment-id: ${{ github.event.client_payload.github.payload.comment.id }}
-          reaction-type: rocket
+          reactions: rocket
 
       - name: Notify Unauthorized
         if: steps.check_perm.outputs.authorized == 'false'
@@ -90,4 +90,4 @@ jobs:
         with:
           issue-number: ${{ github.event.client_payload.github.payload.issue.number }}
           body: "🚫 **Authorization Failed**: You are not an approver."
-          reaction-type: confused
+          reactions: confused
