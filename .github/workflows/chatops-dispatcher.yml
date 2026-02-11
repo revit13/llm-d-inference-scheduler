@@ -13,5 +13,5 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           commands: lgtm
           # 1. Basic Security: Only allow users with 'write' access to even trigger this
-          # permission: write 
+          permission: write 
           issue-type: pull-request

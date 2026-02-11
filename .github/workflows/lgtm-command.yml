@@ -21,16 +21,22 @@ jobs:
         env:
           ACTOR: ${{ github.event.client_payload.github.actor }}
         run: |
+          echo "DEBUG: Checking authorization for user: $ACTOR"
           if [ ! -f "OWNERS" ]; then
             echo "Error: OWNERS file not found."
-            exit 1
+            echo "authorized=false" >> $GITHUB_OUTPUT
+            exit 0
           fi
           APPROVERS=$(yq '.approvers[]' OWNERS)
+          echo "DEBUG: Approvers list: $APPROVERS"
           if echo "$APPROVERS" | grep -Fqx "$ACTOR"; then
+            echo "DEBUG: User $ACTOR is authorized"
             echo "authorized=true" >> $GITHUB_OUTPUT
           else
+            echo "DEBUG: User $ACTOR is NOT authorized"
             echo "authorized=false" >> $GITHUB_OUTPUT
           fi
+          echo "DEBUG: Authorization check output: $(cat $GITHUB_OUTPUT | grep authorized || echo 'none')"
 
       # --- STEP 2: CHECK BLOCKING LABELS ---
       - name: Check for Blocking Labels
