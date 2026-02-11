@@ -15,6 +15,11 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
       # --- STEP 1: VERIFY APPROVER (OWNERS File) ---
       - name: Verify User in OWNERS
         id: check_perm
@@ -32,7 +37,7 @@ jobs:
             echo "authorized=false" >> $GITHUB_OUTPUT
           fi
 
-      # --- STEP 2: CHECK BLOCKING LABELS (The new part) ---
+      # --- STEP 2: CHECK BLOCKING LABELS ---
       - name: Check for Blocking Labels
         if: steps.check_perm.outputs.authorized == 'true'
         env:
