@@ -1,0 +1,32 @@
+name: LGTM Gatekeeper
+on:
+  pull_request:
+    # Run on code push (synchronize) AND label changes
+    types: [opened, synchronize, labeled, unlabeled, reopened]
+
+jobs:
+  validate-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce LGTM & Blockers
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          # Fetch current labels
+          LABELS=$(gh pr view $PR_NUMBER --json labels --jq '.labels[].name')
+          
+          # Check 1: IS IT BLOCKED?
+          if echo "$LABELS" | grep -Eiq "^(hold|wip|do-not-merge)$"; then
+            echo "::error::⛔ FAILED: PR is blocked by a 'hold', 'wip', or 'do-not-merge' label."
+            exit 1
+          fi
+
+          # Check 2: IS IT APPROVED?
+          # If Reset workflow removed the label, this check fails immediately.
+          if ! echo "$LABELS" | grep -Fqx "lgtm"; then
+            echo "::error::⛔ FAILED: PR is missing the 'lgtm' label."
+            exit 1
+          fi
+          
+          echo "✅ PASSED: LGTM present and no blockers."

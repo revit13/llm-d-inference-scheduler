@@ -1,0 +1,26 @@
+name: LGTM Reset
+on:
+  pull_request:
+    types: [synchronize] # Triggers instantly on new push
+
+jobs:
+  reset-approval:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Invalidate Approval
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          echo "🚨 New code pushed. Resetting LGTM status..."
+          
+          # 1. Remove the label (This triggers the Gatekeeper to run again)
+          gh pr edit "$PR_URL" --remove-label "lgtm" || true
+          
+          # 2. Disable Auto-Merge (Safety net)
+          gh pr merge --disable-auto "$PR_URL" || true
+          
+          # 3. Notify user
+          gh issue comment "$PR_URL" --body "🔄 **Reset**: New commits pushed. LGTM removed."

@@ -1,0 +1,67 @@
+name: LGTM Command Worker
+on:
+  repository_dispatch:
+    types: [lgtm-command]
+
+jobs:
+  apply-lgtm:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      # 1. Verify User in OWNERS (Simplified)
+      - name: Check Permissions
+        id: check
+        env:
+          ACTOR: ${{ github.event.client_payload.github.actor }}
+        run: |
+          if grep -q "^\s*-\s*$ACTOR\s*$" OWNERS; then
+            echo "authorized=true" >> $GITHUB_OUTPUT
+          else
+            echo "::error::User $ACTOR is not an approver."
+            exit 1
+          fi
+
+      # 2. Check for Draft (Fail Fast)
+      - name: Check Draft Status
+        if: steps.check.outputs.authorized == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.client_payload.github.payload.issue.html_url }}
+        run: |
+          IS_DRAFT=$(gh pr view "$PR_URL" --json isDraft --jq '.isDraft')
+          if [ "$IS_DRAFT" = "true" ]; then
+            echo "::error::Cannot LGTM a Draft PR."
+            gh issue comment "$PR_URL" --body "⚠️ **LGTM Failed**: PR is a Draft."
+            exit 1
+          fi
+
+      # 3. Apply Label (The only real action)
+      - name: Apply LGTM Label
+        if: steps.check.outputs.authorized == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.client_payload.github.payload.issue.number }}
+          PR_URL: ${{ github.event.client_payload.github.payload.issue.html_url }}
+        run: |
+          # Create label if missing
+          gh label create "lgtm" --color "0E8A16" --description "Looks Good To Me" || true
+          
+          # Add label
+          gh issue edit "$PR_NUMBER" --add-label "lgtm"
+          
+          # Enable Auto-Merge
+          gh pr merge --auto --squash "$PR_URL"
+          
+          # Feedback
+          gh issue comment "$PR_URL" --body "✅ **LGTM Applied**: Auto-merge enabled."
+
+      - name: React Rocket
+        if: success()
+        uses: peter-evans/create-or-update-comment@v3
+        with:
+          comment-id: ${{ github.event.client_payload.github.payload.comment.id }}
+          reaction-type: rocket
