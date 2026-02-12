@@ -21,12 +21,13 @@ jobs:
     steps:
       - name: Evaluate Prow Logic
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Determine PR number whether from comment or PR event
           PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+          REPO: ${{ github.repository }}
         run: |
           # Fetch current labels directly from API for the most up-to-date state
-          LABELS=$(gh pr view $PR_NUMBER --json labels --jq '.labels[].name')
+          LABELS=$(gh pr view $PR_NUMBER --repo "$REPO" --json labels --jq '.labels[].name')
           
           echo "Current Labels: $LABELS"
 
