@@ -4,11 +4,13 @@
 [![Join Slack](https://img.shields.io/badge/Join_Slack-blue?logo=slack)](https://llm-d.slack.com/archives/C08SBNRRSBD)
 
 # Inference Scheduler
-test1ff2uu2
-This scheduler makes optimized routing decisions for inference requests to
+
+
+This schediiiuler makes optimized routing decisions for inference requests to
+
 the llm-d inference framework.
 
-## About
+## Abouuuut
 
 This provides an "Endpoint Picker (EPP)" component to the llm-d inference
 framework which schedules incoming inference requests to the platform via a
