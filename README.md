@@ -5,7 +5,9 @@
 
 # Inference Scheduler
 test1ff2uu2
-This scheduluuer makes optimized routing decisions for inference requests to
+
+This schediiiuler makes optimized routing decisions for inference requests to
+
 the llm-d inference framework.
 
 ## Abouuuut
