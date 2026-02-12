@@ -40,6 +40,19 @@ jobs:
             exit 1
           fi
 
+      - name: Check for Blocking Labels
+        if: steps.check.outputs.authorized == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.client_payload.github.payload.issue.html_url }}
+        run: |
+          LABELS=$(gh pr view "$PR_URL" --json labels --jq '.labels[].name')
+          if echo "$LABELS" | grep -Eiq "^(hold|wip|do-not-merge)$"; then
+            echo "::error::PR is blocked by label."
+            gh issue comment "$PR_URL" --body "  **Merge Blocked**: Please remove the \`hold\`, \`wip\`, or \`do-not-merge\` label before merging."
+            exit 1
+          fi
+
       # 3. Apply Label (The only real action)
       - name: Apply LGTM Label
         if: steps.check.outputs.authorized == 'true'
