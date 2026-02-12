@@ -4,7 +4,8 @@
 [![Join Slack](https://img.shields.io/badge/Join_Slack-blue?logo=slack)](https://llm-d.slack.com/archives/C08SBNRRSBD)
 
 # Inference Scheduler
-test1ff2uuu2
+UUtest1ff22
+
 This scheduler makes optimized routing decisions for inference requests to
 the llm-d inference framework.
 
