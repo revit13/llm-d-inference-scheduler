@@ -7,8 +7,9 @@ jobs:
   apply-lgtm:
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: write
       contents: write
+      pull-requests: write
+      issues: write
     steps:
       - uses: actions/checkout@v4
 
@@ -54,30 +55,49 @@ jobs:
           fi
 
       # 3. Apply Label (The only real action)
-      - name: Apply LGTM Label
+      - name: Apply Label & Merge
         if: steps.check.outputs.authorized == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.client_payload.github.payload.issue.number }}
-          REPO: ${{ github.repository }}
+          PR_URL: ${{ github.event.client_payload.github.payload.issue.html_url }}
         run: |
-          # Create label if missing
-          gh label create "lgtm" --repo "$REPO" --color "0E8A16" --description "Looks Good To Me" || true
+          # Apply lgtm label
+          if ! gh issue edit "$PR_NUMBER" --add-label "lgtm"; then
+            echo "::error::Failed to add lgtm label"
+            gh issue comment "$PR_URL" --body "  **Error**: Failed to add lgtm label to the PR."
+            exit 1
+          fi
 
-          # Add label
-          gh issue edit $PR_NUMBER --repo "$REPO" --add-label "lgtm"
-
-          # Wait 5 minutes before enabling auto-merge
           echo "Waiting 5 minutes before setting auto-merge..."
           echo "Current time: $(date)"
           sleep 300
           echo "Wait completed at: $(date)"
 
-          # Enable Auto-Merge
-          gh pr merge --auto --squash $PR_NUMBER --repo "$REPO"
+          # Enable auto-merge with error handling
+          if ! gh pr merge --auto --squash "$PR_URL" 2>&1 | tee merge_output.txt; then
+            echo "::error::Failed to enable auto-merge"
+            ERROR_MSG=$(cat merge_output.txt)
+            gh issue comment "$PR_URL" --body "  **Auto-merge failed**: Could not enable auto-merge on this PR.
 
-          # Feedback
-          gh issue comment $PR_NUMBER --repo "$REPO" --body "✅ **LGTM Applied**: Auto-merge enabled."
+          **Error details:**
+          \`\`\`
+          $ERROR_MSG
+          \`\`\`
+
+          **Common reasons:**
+          - Branch protection rules not satisfied
+          - Required status checks not passing
+          - Merge conflicts present
+          - Auto-merge not enabled for this repository
+
+          Please check the PR status and try again, or merge manually."
+            exit 1
+          fi
+
+          echo "✅ Auto-merge enabled successfully"
+          gh issue comment "$PR_URL" --body "✅ **LGTM**: Auto-merge has been enabled. The PR will merge automatically once all checks pass."
+
 
       - name: React Rocket
         if: success()
