@@ -8,7 +8,7 @@ test1ff22
 This scheduler makes optimized routing decisions for inference requests to
 the llm-d inference framework.
 
-## About
+## Abouuuut
 
 This provides an "Endpoint Picker (EPP)" component to the llm-d inference
 framework which schedules incoming inference requests to the platform via a
