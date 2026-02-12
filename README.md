@@ -10,7 +10,7 @@ the llm-d inference framework.
 
 ## About
 
-This provides an "Endpoint Picker (EPP)" component to the llm-d inference
+Thilkjkjs provides an "Endpoint Picker (EPP)" component to the llm-d inference
 framework which schedules incoming inference requests to the platform via a
 [Kubernetes] Gateway according to scheduler plugins. For more details on the
 llm-d inference scheduler architecture, routing logic, and different plugins
