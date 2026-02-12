@@ -146,4 +146,4 @@ jobs:
         uses: peter-evans/create-or-update-comment@v3
         with:
           comment-id: ${{ github.event.client_payload.github.payload.comment.id }}
-          reaction-type: rocket
+          reactions: rocket
