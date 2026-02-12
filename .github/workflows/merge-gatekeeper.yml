@@ -1,0 +1,45 @@
+name: "Prow Automation"
+
+on:
+  pull_request:
+    types: [labeled, unlabeled, synchronize, opened, reopened]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  # --- JOB 1: THE GATEKEEPER ---
+  # This job acts as a Required Status Check.
+  # It only passes if lgtm is present AND no blockers exist.
+  gatekeeper:
+    if: github.event.pull_request || github.event.issue.pull_request
+    runs-on: ubuntu-latest
+    steps:
+      - name: Evaluate Prow Logic
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Determine PR number whether from comment or PR event
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+        run: |
+          # Fetch current labels directly from API for the most up-to-date state
+          LABELS=$(gh pr view $PR_NUMBER --json labels --jq '.labels[].name')
+          
+          echo "Current Labels: $LABELS"
+
+          # 1. Check for Blockers
+          if echo "$LABELS" | grep -E -q 'hold|wip|do-not-merge'; then
+            echo ":x: BLOCKED: 'hold', 'wip', or 'do-not-merge' label detected."
+            exit 1
+          fi
+
+          # 2. Check for LGTM
+          if ! echo "$LABELS" | grep -E -q 'lgtm'; then
+            echo ":x: BLOCKED: Missing 'lgtm' label."
+            exit 1
+          fi
+
+          echo ":white_check_mark: Safety checks passed."
