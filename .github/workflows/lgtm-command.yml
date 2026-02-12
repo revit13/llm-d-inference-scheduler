@@ -15,6 +15,11 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
       # --- STEP 1: VERIFY APPROVER (OWNERS File) ---
       - name: Verify User in OWNERS
         id: check_perm
@@ -27,7 +32,7 @@ jobs:
           if [ ! -f "OWNERS" ]; then
             echo "ERROR: OWNERS file not found."
             echo "authorized=false" >> "$GITHUB_OUTPUT"
-            exit 0
+            exit 1
           fi
           
           APPROVERS=$(yq '.approvers[]' OWNERS)
@@ -67,16 +72,43 @@ jobs:
           PR_NUMBER: ${{ github.event.client_payload.github.payload.issue.number }}
           PR_URL: ${{ github.event.client_payload.github.payload.issue.html_url }}
         run: |
-          gh issue edit "$PR_NUMBER" --add-label "lgtm"
-          gh pr merge --auto --squash "$PR_URL"
+          # Apply lgtm label
+          if ! gh issue edit "$PR_NUMBER" --add-label "lgtm"; then
+            echo "::error::Failed to add lgtm label"
+            gh issue comment "$PR_URL" --body "⚠️ **Error**: Failed to add lgtm label to the PR."
+            exit 1
+          fi
+
+          echo "Waiting 5 minutes before setting auto-merge..."
+          echo "Current time: $(date)"
+          sleep 300
+          echo "Wait completed at: $(date)"
+
+          # Enable auto-merge with error handling
+          if ! gh pr merge --auto --squash "$PR_URL" 2>&1 | tee merge_output.txt; then
+            echo "::error::Failed to enable auto-merge"
+            ERROR_MSG=$(cat merge_output.txt)
+            gh issue comment "$PR_URL" --body "⚠️ **Auto-merge failed**: Could not enable auto-merge on this PR.
+
+          **Error details:**
+          \`\`\`
+          $ERROR_MSG
+          \`\`\`
+
+          **Common reasons:**
+          - Branch protection rules not satisfied
+          - Required status checks not passing
+          - Merge conflicts present
+          - Auto-merge not enabled for this repository
+
+          Please check the PR status and try again, or merge manually."
+            exit 1
+          fi
+
+          echo "✅ Auto-merge enabled successfully"
+          gh issue comment "$PR_URL" --body "✅ **LGTM**: Auto-merge has been enabled. The PR will merge automatically once all checks pass."
 
       # --- STEP 4: FEEDBACK ---
-      - name: Debug Authorization Status
-        run: |
-          echo "DEBUG: Authorization status = '${{ steps.check_perm.outputs.authorized }}'"
-          echo "DEBUG: Checking if authorized == 'true': ${{ steps.check_perm.outputs.authorized == 'true' }}"
-          echo "DEBUG: Checking if authorized == 'false': ${{ steps.check_perm.outputs.authorized == 'false' }}"
-      
       - name: React with Rocket
         if: steps.check_perm.outputs.authorized == 'true'
         uses: peter-evans/create-or-update-comment@v3
