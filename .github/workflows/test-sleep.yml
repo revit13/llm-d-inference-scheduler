@@ -1,0 +1,19 @@
+name: Test Sleep Workflow
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  sleep-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sleep for 10 minutes
+        run: |
+          echo "Starting 10 minute sleep for testing..."
+          echo "Current time: $(date)"
+          sleep 600
+          echo "Sleep completed at: $(date)"
+
+# Made with Bob
