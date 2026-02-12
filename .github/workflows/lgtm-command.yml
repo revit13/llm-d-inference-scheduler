@@ -68,6 +68,10 @@ jobs:
           PR_URL: ${{ github.event.client_payload.github.payload.issue.html_url }}
         run: |
           gh issue edit "$PR_NUMBER" --add-label "lgtm"
+          echo "Waiting 5 minutes before setting auto-merge..."
+          echo "Current time: $(date)"
+          sleep 300
+          echo "Wait completed at: $(date)"
           gh pr merge --auto --squash "$PR_URL"
 
       # --- STEP 4: FEEDBACK ---
