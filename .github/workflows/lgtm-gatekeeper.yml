@@ -12,9 +12,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
         run: |
           # Fetch current labels
-          LABELS=$(gh pr view $PR_NUMBER --json labels --jq '.labels[].name')
+          LABELS=$(gh pr view $PR_NUMBER --repo "$REPO" --json labels --jq '.labels[].name')
           
           # Check 1: IS IT BLOCKED?
           if echo "$LABELS" | grep -Eiq "^(hold|wip|do-not-merge)$"; then

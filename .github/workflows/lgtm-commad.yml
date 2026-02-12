@@ -30,12 +30,13 @@ jobs:
         if: steps.check.outputs.authorized == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_URL: ${{ github.event.client_payload.github.payload.issue.html_url }}
+          PR_NUMBER: ${{ github.event.client_payload.github.payload.issue.number }}
+          REPO: ${{ github.repository }}
         run: |
-          IS_DRAFT=$(gh pr view "$PR_URL" --json isDraft --jq '.isDraft')
+          IS_DRAFT=$(gh pr view $PR_NUMBER --repo "$REPO" --json isDraft --jq '.isDraft')
           if [ "$IS_DRAFT" = "true" ]; then
             echo "::error::Cannot LGTM a Draft PR."
-            gh issue comment "$PR_URL" --body "⚠️ **LGTM Failed**: PR is a Draft."
+            gh issue comment $PR_NUMBER --repo "$REPO" --body "⚠️ **LGTM Failed**: PR is a Draft."
             exit 1
           fi
 
@@ -45,19 +46,19 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.client_payload.github.payload.issue.number }}
-          PR_URL: ${{ github.event.client_payload.github.payload.issue.html_url }}
+          REPO: ${{ github.repository }}
         run: |
           # Create label if missing
-          gh label create "lgtm" --color "0E8A16" --description "Looks Good To Me" || true
-          
+          gh label create "lgtm" --repo "$REPO" --color "0E8A16" --description "Looks Good To Me" || true
+
           # Add label
-          gh issue edit "$PR_NUMBER" --add-label "lgtm"
-          
+          gh issue edit $PR_NUMBER --repo "$REPO" --add-label "lgtm"
+
           # Enable Auto-Merge
-          gh pr merge --auto --squash "$PR_URL"
-          
+          gh pr merge --auto --squash $PR_NUMBER --repo "$REPO"
+
           # Feedback
-          gh issue comment "$PR_URL" --body "✅ **LGTM Applied**: Auto-merge enabled."
+          gh issue comment $PR_NUMBER --repo "$REPO" --body "✅ **LGTM Applied**: Auto-merge enabled."
 
       - name: React Rocket
         if: success()
