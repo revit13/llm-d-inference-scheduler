@@ -67,6 +67,12 @@ jobs:
           # Add label
           gh issue edit $PR_NUMBER --repo "$REPO" --add-label "lgtm"
 
+          # Wait 5 minutes before enabling auto-merge
+          echo "Waiting 5 minutes before setting auto-merge..."
+          echo "Current time: $(date)"
+          sleep 300
+          echo "Wait completed at: $(date)"
+
           # Enable Auto-Merge
           gh pr merge --auto --squash $PR_NUMBER --repo "$REPO"
 
