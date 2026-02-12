@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 1. Verify User in OWNERS (Simplified)
+      # 1. Verify User in OWNERS
       - name: Check Permissions
         id: check
         env:
