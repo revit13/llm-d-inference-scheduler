@@ -11,9 +11,9 @@ jobs:
     steps:
       - name: Sleep for 10 minutes
         run: |
-          echo "Starting 10 minute sleep for testing..."
+          echo "Starting 5 minute sleep for testing..."
           echo "Current time: $(date)"
-          sleep 600
+          sleep 300
           echo "Sleep completed at: $(date)"
 
 # Made with Bob
