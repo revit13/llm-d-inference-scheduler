@@ -363,23 +363,7 @@ The project uses a Prow-inspired ChatOps system to manage PR approvals via comme
 
 ### Approving a PR
 
-To approve a PR, comment `/lgtm`. The system will then:
-
-- Authorize: Verify you are an approved reviewer in the OWNERS file.
-- Validate: Ensure the PR is not a Draft and has no blocking labels.
-- Finalize: Apply the lgtm label and trigger auto-merge (squash).
-
-The PR will merge automatically once all required status checks pass.
-
-### Canceling an Approval
-
-To remove an approval from a PR, comment `/lgtm cancel`. The system will then:
-
-- Authorize: Verify you are an approved reviewer in the OWNERS file.
-- Remove: Remove the lgtm label from the PR.
-- Disable: Disable auto-merge on the PR.
-
-This is useful when you need to revoke approval after discovering an issue or when additional changes are required.
+Comment `/lgtm` to approve a PR. This adds the `lgtm` label and enables auto-merge (squash). The PR merges automatically once all checks pass. Only OWNERS approvers can use this command, and it won't work on draft PRs or those with blocking labels.
 
 ### Approval Reset on New Commits
 
@@ -388,3 +372,7 @@ When new commits are pushed to an approved PR, the `lgtm` label is automatically
 ### Blocking Labels
 
 The `hold` label prevents a PR from being approved or merged. Remove it before requesting `/lgtm`.
+
+### Canceling Commands
+
+Chat commands can be cancelled by adding `cancel` as a subcommand. For example, `/lgtm cancel` removes the LGTM approval and disables auto-merge, while `/hold cancel` removes the hold label. Only OWNERS approvers can cancel commands.
