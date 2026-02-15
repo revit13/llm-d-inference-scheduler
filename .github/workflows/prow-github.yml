@@ -32,7 +32,5 @@ jobs:
             /lock
             /milestone
             /hold
-            /wip
-            /do-not-merge
             /cc
             /uncc"

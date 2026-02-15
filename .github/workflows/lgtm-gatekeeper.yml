@@ -3,7 +3,7 @@
 # ============================================================================
 # Rules Enforced:
 # 1. PR MUST have "lgtm" label
-# 2. PR MUST NOT have blocking labels (hold, wip, do-not-merge)
+# 2. PR MUST NOT have blocking labels (hold)
 # ============================================================================
 
 name: LGTM Gatekeeper
@@ -14,7 +14,7 @@ on:
     types: [opened, labeled, unlabeled, reopened]
 
 env:
-  BLOCKING_LABELS: "hold|wip|do-not-merge"
+  BLOCKING_LABELS: "hold"
 
 jobs:
   validate-pr:
@@ -31,7 +31,7 @@ jobs:
           
           # Check 1: IS IT BLOCKED?
           if echo "$LABELS" | grep -Eiq "^($BLOCKING_LABELS)$"; then
-            echo "::error:: ⛔ FAILED: PR is blocked by a 'hold', 'wip', or 'do-not-merge' label."
+            echo "::error:: ⛔ FAILED: PR is blocked by a 'hold' label."
             exit 1
           fi
 

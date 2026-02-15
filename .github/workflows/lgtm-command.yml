@@ -9,7 +9,7 @@
 # 3. This workflow:
 #    - Verifies user is in OWNERS file
 #    - Checks if PR is draft
-#    - Checks for blocking labels (hold/wip/do-not-merge)
+#    - Checks for blocking labels (hold)
 #    - Adds lgtm label
 #    - Enables auto-merge
 # ============================================================================
@@ -20,7 +20,7 @@ on:
     types: [lgtm-command]
 
 env:
-  BLOCKING_LABELS: "hold|wip|do-not-merge"
+  BLOCKING_LABELS: "hold"
 
 jobs:
   apply-lgtm:
@@ -75,7 +75,7 @@ jobs:
           fi
 
       # -----------------------------------------------------------------------
-      # STEP 3: BLOCKING LABELS - Check for hold/wip/do-not-merge
+      # STEP 3: BLOCKING LABELS - Check for hold
       # -----------------------------------------------------------------------
       # If any blocking label exists, fail immediately
       # This prevents approving PRs that are explicitly marked as not ready
@@ -87,7 +87,7 @@ jobs:
           LABELS=$(gh pr view "$PR_URL" --json labels --jq '.labels[].name')
           if echo "$LABELS" | grep -Eiq "^($BLOCKING_LABELS)$"; then
             echo "::error:: PR is blocked by label."
-            gh issue comment "$PR_URL" --body "  **Merge Blocked**: Please remove the \`hold\`, \`wip\`, or \`do-not-merge\` label before merging."
+            gh issue comment "$PR_URL" --body "  **Merge Blocked**: Please remove the \`hold\` label before merging."
             exit 1
           fi
 

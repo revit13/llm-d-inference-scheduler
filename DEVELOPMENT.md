@@ -377,10 +377,4 @@ When new commits are pushed to an approved PR, the `lgtm` label is automatically
 
 ### Blocking Labels
 
-The following labels prevent a PR from being approved or merged:
-
-- `hold` — PR is on hold
-- `wip` — Work in progress
-- `do-not-merge` — Explicitly blocked from merging
-
-Remove these labels before requesting `/lgtm`.
+The `hold` label prevents a PR from being approved or merged. Remove it before requesting `/lgtm`.
