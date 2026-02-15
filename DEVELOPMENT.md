@@ -371,6 +371,16 @@ To approve a PR, comment `/lgtm`. The system will then:
 
 The PR will merge automatically once all required status checks pass.
 
+### Canceling an Approval
+
+To remove an approval from a PR, comment `/lgtm cancel`. The system will then:
+
+- Authorize: Verify you are an approved reviewer in the OWNERS file.
+- Remove: Remove the lgtm label from the PR.
+- Disable: Disable auto-merge on the PR.
+
+This is useful when you need to revoke approval after discovering an issue or when additional changes are required.
+
 ### Approval Reset on New Commits
 
 When new commits are pushed to an approved PR, the `lgtm` label is automatically removed and auto-merge is disabled. This ensures approvals always reflect the latest code. The author must request a new `/lgtm` after pushing changes.

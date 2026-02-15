@@ -96,41 +96,39 @@ jobs:
       # -----------------------------------------------------------------------
       # 1. Add lgtm label (triggers gatekeeper to validate)
       # 2. Enable auto-merge (PR will merge when all checks pass)
-      - name: Apply Label & Merge
+      - name: Apply or Cancel LGTM
         env:
           GH_TOKEN: ${{ steps.generate-token.outputs.token }}
           PR_NUMBER: ${{ github.event.client_payload.github.payload.issue.number }}
           PR_URL: ${{ github.event.client_payload.github.payload.issue.html_url }}
+          # Extract the full comment body from the dispatcher payload
+          COMMENT_BODY: ${{ github.event.client_payload.github.payload.comment.body }}
         run: |
-          # Apply lgtm label
-          if ! gh issue edit "$PR_NUMBER" --add-label "lgtm"; then
-            echo "::error:: Failed to add lgtm label"
-            gh issue comment "$PR_URL" --body "  **Error**: Failed to add lgtm label to the PR."
-            exit 1
+          # Check if the command is a cancellation
+          if echo "$COMMENT_BODY" | grep -q "/lgtm cancel"; then
+            echo "🚨 Retracting LGTM status..."
+
+            # 1. Remove lgtm label
+            gh issue edit "$PR_NUMBER" --remove-label "lgtm" || echo "Label already gone"
+
+            # 2. Disable Auto-Merge
+            gh pr merge --disable-auto "$PR_URL" || echo "Auto-merge was not enabled"
+
+            # 3. Notify user
+            gh issue comment "$PR_URL" --body "Retracted: **LGTM** label removed and auto-merge disabled by @$ACTOR."
+          
+          else
+            echo "✅ Applying LGTM status..."
+
+            # 1. Add lgtm label
+            gh issue edit "$PR_NUMBER" --add-label "lgtm"
+
+            # 2. Enable auto-merge (Squash)
+            if ! gh pr merge --auto --squash "$PR_URL" 2>&1 | tee merge_output.txt; then
+              ERROR_MSG=$(cat merge_output.txt)
+              gh issue comment "$PR_URL" --body "⚠️ **Auto-merge failed**: $ERROR_MSG"
+              exit 1
+            fi
+
+            gh issue comment "$PR_URL" --body "✅ **LGTM**: Approval recorded and auto-merge enabled."
           fi
-
-          echo "Applying auto-merge..."
-
-          # Enable auto-merge with error handling
-          if ! gh pr merge --auto --squash "$PR_URL" 2>&1 | tee merge_output.txt; then
-            echo "::error:: Failed to enable auto-merge"
-            ERROR_MSG=$(cat merge_output.txt)
-            gh issue comment "$PR_URL" --body "  **Auto-merge failed**: Could not enable auto-merge on this PR.
-
-          **Error details:**
-          \`\`\`
-          $ERROR_MSG
-          \`\`\`
-
-          **Common reasons:**
-          - Branch protection rules not satisfied
-          - Required status checks not passing
-          - Merge conflicts present
-          - Auto-merge not enabled for this repository
-
-          Please check the PR status and try again, or merge manually."
-            exit 1
-          fi
-
-          echo "✅ Auto-merge enabled successfully"
-          gh issue comment "$PR_URL" --body "✅ **LGTM**: Auto-merge has been enabled. The PR will merge automatically once all checks pass."
