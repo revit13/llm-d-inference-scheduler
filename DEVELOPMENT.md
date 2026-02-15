@@ -361,18 +361,15 @@ For more details, see the Gateway API inference Extension [getting started guide
 
 The project uses a Prow-inspired ChatOps system to manage PR approvals via comment commands.
 
-### Approving a PR
+### Available Commands
 
-Comment `/lgtm` to approve a PR. This adds the `lgtm` label and enables auto-merge (squash). The PR merges automatically once all checks pass. Only OWNERS approvers can use this command, and it won't work on draft PRs or those with blocking labels.
+| Command | Policy | Description |
+|---------|--------|-------------|
+| `/lgtm` | OWNERS approvers | Adds the `lgtm` label and enables auto-merge (squash). The PR merges automatically once all checks pass. |
+| `/lgtm cancel` | OWNERS approvers | Removes the `lgtm` label and disables auto-merge. |
+| `/hold` | Anyone with write access | Adds the `hold` label to prevent the PR from merging. |
+| `/hold cancel` | Anyone with write access | Removes the `hold` label. |
 
 ### Approval Reset on New Commits
 
 When new commits are pushed to an approved PR, the `lgtm` label is automatically removed and auto-merge is disabled. This ensures approvals always reflect the latest code. The author must request a new `/lgtm` after pushing changes.
-
-### Blocking Labels
-
-The `hold` label prevents a PR from being approved or merged. Remove it before requesting `/lgtm`.
-
-### Canceling Commands
-
-Chat commands can be cancelled by adding `cancel` as a subcommand. For example, `/lgtm cancel` removes the LGTM approval and disables auto-merge, while `/hold cancel` removes the hold label. Only OWNERS approvers can cancel commands.
