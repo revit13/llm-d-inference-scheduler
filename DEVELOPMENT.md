@@ -359,11 +359,11 @@ For more details, see the Gateway API inference Extension [getting started guide
 
 ## PR Approval Process
 
-The project uses a Prow-inspired system to manage PR approvals. The process works as follows:
+The project uses a Prow-inspired ChatOps system to manage PR approvals via comment commands.
 
 ### Approving a PR
 
-To approve a PR, comment /lgtm. The system will then:
+To approve a PR, comment `/lgtm`. The system will then:
 
 - Authorize: Verify you are an approved reviewer in the OWNERS file.
 - Validate: Ensure the PR is not a Draft and has no blocking labels.
