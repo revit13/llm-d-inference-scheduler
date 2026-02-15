@@ -44,14 +44,13 @@ jobs:
       # Only users listed as approvers in OWNERS can use /lgtm
       # This prevents unauthorized users from approving PRs
       - name: Check Permissions
-        id: check
         env:
           ACTOR: ${{ github.event.client_payload.github.actor }}
         run: |
           # Extract only the approvers section and check if ACTOR is listed
           APPROVERS=$(sed -n '/^approvers:/,/^[^ -]/p' OWNERS | grep -v '^approvers:')
           if echo "$APPROVERS" | grep -q "^\s*-\s*$ACTOR\s*$"; then
-            echo "authorized=true" >> $GITHUB_OUTPUT
+            echo "User $ACTOR is authorized"
           else
             echo "::error:: User $ACTOR is not an approver."
             exit 1
@@ -63,7 +62,6 @@ jobs:
       # Draft PRs cannot be approved - they must be marked ready for review
       # This prevents accidental approval of incomplete work
       - name: Check Draft Status
-        if: steps.check.outputs.authorized == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.client_payload.github.payload.issue.number }}
@@ -82,7 +80,6 @@ jobs:
       # If any blocking label exists, fail immediately
       # This prevents approving PRs that are explicitly marked as not ready
       - name: Check for Blocking Labels
-        if: steps.check.outputs.authorized == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.client_payload.github.payload.issue.html_url }}
@@ -100,7 +97,6 @@ jobs:
       # 1. Add lgtm label (triggers gatekeeper to validate)
       # 2. Enable auto-merge (PR will merge when all checks pass)
       - name: Apply Label & Merge
-        if: steps.check.outputs.authorized == 'true'
         env:
           GH_TOKEN: ${{ steps.generate-token.outputs.token }}
           PR_NUMBER: ${{ github.event.client_payload.github.payload.issue.number }}
