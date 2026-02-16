@@ -5,7 +5,7 @@
 
 # Inference Scheduler
 
-This scheduler makes optimized routing decisions for inference requests to
+This schedulejjr makes optimized routing decisions for inference requests to
 the llm-d inference framework.
 
 ## About

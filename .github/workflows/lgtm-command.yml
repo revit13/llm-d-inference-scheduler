@@ -1,0 +1,134 @@
+# ============================================================================
+# LGTM Command Worker
+# ============================================================================
+# Handles /lgtm commands from chatops-dispatcher
+#
+# Flow:
+# 1. User comments /lgtm on PR
+# 2. chatops-dispatcher catches it and dispatches here
+# 3. This workflow:
+#    - Verifies user is listed under 'reviewers' in OWNERS file
+#    - Checks if PR is draft
+#    - Checks for blocking labels (hold)
+#    - Adds lgtm label
+#    - Enables auto-merge
+# ============================================================================
+
+name: LGTM Command Worker
+on:
+  repository_dispatch:
+    types: [lgtm-command]
+
+env:
+  BLOCKING_LABELS: "hold"
+
+jobs:
+  apply-lgtm:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: tibdex/github-app-token@v1
+        id: generate-token
+        with:
+          app_id: ${{ secrets.VLLMD_BOT_APP_ID }}
+          private_key: ${{ secrets.VLLMD_BOT_APP_PRIVATE_KEY }}
+          repository: ${{ github.repository }}
+
+      # -----------------------------------------------------------------------
+      # STEP 1: AUTHORIZATION - Verify user is in OWNERS file
+      # -----------------------------------------------------------------------
+      # Only users listed as reviewers in OWNERS can use /lgtm
+      # This prevents unauthorized users from applying the lgtm label
+      - name: Check Permissions
+        env:
+          ACTOR: ${{ github.event.client_payload.github.actor }}
+        run: |
+          # Extract only the reviewers section and check if ACTOR is listed
+          REVIEWERS=$(sed -n '/^reviewers:/,/^[^ -]/p' OWNERS | grep -v '^reviewers:')
+          if echo "$REVIEWERS" | grep -q "^\s*-\s*$ACTOR\s*$"; then
+            echo "User $ACTOR is authorized"
+          else
+            echo "::error:: User $ACTOR is not a reviewer."
+            exit 1
+          fi
+
+      # -----------------------------------------------------------------------
+      # STEP 2: VALIDATION - Check if PR is in draft mode
+      # -----------------------------------------------------------------------
+      # Draft PRs cannot be approved - they must be marked ready for review
+      # This prevents accidental approval of incomplete work
+      - name: Check Draft Status
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.client_payload.github.payload.issue.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          IS_DRAFT=$(gh pr view $PR_NUMBER --repo "$REPO" --json isDraft --jq '.isDraft')
+          if [ "$IS_DRAFT" = "true" ]; then
+            echo "::error:: Cannot LGTM a Draft PR."
+            gh issue comment $PR_NUMBER --repo "$REPO" --body "⚠️ **LGTM Failed**: PR is a Draft."
+            exit 1
+          fi
+
+      # -----------------------------------------------------------------------
+      # STEP 3: BLOCKING LABELS - Check for hold
+      # -----------------------------------------------------------------------
+      # If any blocking label exists, fail immediately
+      # This prevents approving PRs that are explicitly marked as not ready
+      - name: Check for Blocking Labels
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.client_payload.github.payload.issue.html_url }}
+        run: |
+          LABELS=$(gh pr view "$PR_URL" --json labels --jq '.labels[].name')
+          if echo "$LABELS" | grep -Eiq "^($BLOCKING_LABELS)$"; then
+            echo "::error:: PR is blocked by label."
+            gh issue comment "$PR_URL" --body "  **Merge Blocked**: Please remove the \`hold\` label before merging."
+            exit 1
+          fi
+
+      # -----------------------------------------------------------------------
+      # STEP 4: APPLY LGTM - Add label, wait, then enable auto-merge
+      # -----------------------------------------------------------------------
+      # 1. Add lgtm label (triggers gatekeeper to validate)
+      # 2. Enable auto-merge (PR will merge when all checks pass)
+      - name: Apply or Cancel LGTM
+        env:
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+          PR_NUMBER: ${{ github.event.client_payload.github.payload.issue.number }}
+          PR_URL: ${{ github.event.client_payload.github.payload.issue.html_url }}
+          # Extract the full comment body from the dispatcher payload
+          COMMENT_BODY: ${{ github.event.client_payload.github.payload.comment.body }}
+        run: |
+          # Check if the command is a cancellation
+          if echo "$COMMENT_BODY" | grep -q "/lgtm cancel"; then
+            echo "🚨 Retracting LGTM status..."
+
+            # 1. Remove lgtm label
+            gh issue edit "$PR_NUMBER" --remove-label "lgtm" || echo "Label already gone"
+
+            # 2. Disable Auto-Merge
+            gh pr merge --disable-auto "$PR_URL" || echo "Auto-merge was not enabled"
+
+            # 3. Notify user
+            gh issue comment "$PR_URL" --body "Retracted: **LGTM** label removed and auto-merge disabled by @$ACTOR."
+          
+          else
+            echo "✅ Applying LGTM status..."
+
+            # 1. Add lgtm label
+            gh issue edit "$PR_NUMBER" --add-label "lgtm"
+
+            # 2. Enable auto-merge (Squash)
+            if ! gh pr merge --auto --squash "$PR_URL" 2>&1 | tee merge_output.txt; then
+              ERROR_MSG=$(cat merge_output.txt)
+              gh issue comment "$PR_URL" --body "⚠️ **Auto-merge failed**: $ERROR_MSG"
+              exit 1
+            fi
+
+            gh issue comment "$PR_URL" --body "✅ **LGTM**: auto-merge enabled."
+          fi
