@@ -112,15 +112,6 @@ data:
                 # Ignore certain headers to allow caching
                 proxy_ignore_headers X-Accel-Expires Expires Cache-Control Set-Cookie;
             }
-
-            # Cache management endpoint (optional)
-            location /cache/purge {
-                allow 127.0.0.1;
-                allow 10.0.0.0/8;
-                deny all;
-                
-                proxy_cache_purge mm_cache $arg_url;
-            }
         }
     }
 
