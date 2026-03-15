@@ -1,18 +1,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: multimedia-cache
+  name: multimedia-downloader
   labels:
-    app: multimedia-cache
+    app: multimedia-downloader
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: multimedia-cache
+      app: multimedia-downloader
   template:
     metadata:
       labels:
-        app: multimedia-cache
+        app: multimedia-downloader
     spec:
       containers:
       - name: nginx
@@ -54,7 +54,7 @@ spec:
       volumes:
       - name: nginx-config
         configMap:
-          name: nginx-multimedia-cache-config
+          name: nginx-multimedia-downloader-config
       - name: cache-volume
         emptyDir:
           sizeLimit: 10Gi

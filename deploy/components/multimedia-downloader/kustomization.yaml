@@ -11,5 +11,5 @@ resources:
 - service.yaml
 
 commonLabels:
-  component: multimedia-cache
+  component: multimedia-downloader
 

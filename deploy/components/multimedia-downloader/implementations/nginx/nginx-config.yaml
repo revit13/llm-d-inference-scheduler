@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: nginx-multimedia-cache-config
+  name: nginx-multimedia-downloader-config
   labels:
-    app: multimedia-cache
+    app: multimedia-downloader
 data:
   nginx.conf: |
     user nginx;
@@ -91,7 +91,7 @@ data:
                 # Proxy settings
                 proxy_pass $arg_url;
                 proxy_set_header Host $proxy_host;
-                proxy_set_header User-Agent "llm-d-multimedia-cache/1.0";
+                proxy_set_header User-Agent "llm-d-multimedia-downloader/1.0";
                 
                 # Pass through range headers for video seeking
                 proxy_http_version 1.1;

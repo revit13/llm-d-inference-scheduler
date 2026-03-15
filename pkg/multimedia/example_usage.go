@@ -23,11 +23,11 @@ import (
 	"os"
 )
 
-// ExampleUsage demonstrates how to use the multimedia cache client
+// ExampleUsage demonstrates how to use the multimedia downloader client
 func ExampleUsage() error {
-	// Initialize the cache client
+	// Initialize the downloader client
 	client := NewCacheClient(Config{
-		ServiceURL: "http://multimedia-cache.default.svc.cluster.local",
+		ServiceURL: "http://multimedia-downloader.default.svc.cluster.local",
 		Enabled:    true, // Set to false to disable caching
 	})
 
@@ -59,7 +59,7 @@ func ExampleUsage() error {
 func ExampleDirectFetch() error {
 	// Initialize with caching disabled
 	client := NewCacheClient(Config{
-		ServiceURL: "http://multimedia-cache.default.svc.cluster.local",
+		ServiceURL: "http://multimedia-downloader.default.svc.cluster.local",
 		Enabled:    false, // Caching disabled
 	})
 

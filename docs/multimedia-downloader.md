@@ -1,6 +1,6 @@
-# Multimedia Cache Service
+# Multimedia Downloader Service
 
-The multimedia cache service provides an optional caching proxy for multimedia content (images, videos, audio, etc.). It helps reduce bandwidth usage and improve response times by caching frequently accessed media files.
+The multimedia downloader service provides an optional caching proxy for multimedia content (images, videos, audio, etc.). It helps reduce bandwidth usage and improve response times by caching frequently accessed media files.
 
 **Optimized for video streaming** with support for HTTP range requests, sliced caching for large files, and extended timeouts.
 
@@ -53,12 +53,12 @@ The multimedia cache service is designed with a pluggable architecture that allo
 
 The service is structured to support multiple cache implementations. To add a new implementation (e.g., Varnish, Squid, Apache Traffic Server):
 
-1. Create a new directory: `deploy/components/multimedia-cache/implementations/<name>/`
+1. Create a new directory: `deploy/components/multimedia-downloader/implementations/<name>/`
 2. Add deployment and configuration files
-3. Update `deploy/components/multimedia-cache/kustomization.yaml` to reference your implementation
-4. Redeploy: `kubectl apply -k deploy/components/multimedia-cache/`
+3. Update `deploy/components/multimedia-downloader/kustomization.yaml` to reference your implementation
+4. Redeploy: `kubectl apply -k deploy/components/multimedia-downloader/`
 
-See `deploy/components/multimedia-cache/implementations/README.md` for detailed requirements and instructions.
+See `deploy/components/multimedia-downloader/implementations/README.md` for detailed requirements and instructions.
 
 **Important**: The Go client library and API remain the same regardless of which cache implementation you choose. All implementations must expose the same HTTP API (`/fetch?url=`, `/health`, `X-Cache-Status` header).
 
@@ -111,25 +111,25 @@ proxy_cache_path /var/cache/nginx
 
 ```bash
 # Deploy using kustomize
-kubectl apply -k deploy/components/multimedia-cache/
+kubectl apply -k deploy/components/multimedia-downloader/
 
 # Or deploy individual files
-kubectl apply -f deploy/components/multimedia-cache/nginx-config.yaml
-kubectl apply -f deploy/components/multimedia-cache/deployment.yaml
-kubectl apply -f deploy/components/multimedia-cache/service.yaml
+kubectl apply -f deploy/components/multimedia-downloader/nginx-config.yaml
+kubectl apply -f deploy/components/multimedia-downloader/deployment.yaml
+kubectl apply -f deploy/components/multimedia-downloader/service.yaml
 ```
 
 ### Verify Deployment
 
 ```bash
 # Check pods
-kubectl get pods -l app=multimedia-cache
+kubectl get pods -l app=multimedia-downloader
 
 # Check service
-kubectl get svc multimedia-cache
+kubectl get svc multimedia-downloader
 
 # Check logs
-kubectl logs -l app=multimedia-cache
+kubectl logs -l app=multimedia-downloader
 ```
 
 ## Usage
@@ -141,7 +141,7 @@ import "github.com/llm-d/llm-d-inference-scheduler/pkg/multimedia"
 
 // Initialize the cache client
 client := multimedia.NewCacheClient(multimedia.Config{
-    ServiceURL: "http://multimedia-cache.default.svc.cluster.local",
+    ServiceURL: "http://multimedia-downloader.default.svc.cluster.local",
     Enabled:    true, // Set to false to disable caching
 })
 
@@ -166,14 +166,14 @@ data, err := io.ReadAll(body)
 
 ```bash
 # Fetch media through cache
-curl "http://multimedia-cache/fetch?url=https://example.com/image.jpg"
+curl "http://multimedia-downloader/fetch?url=https://example.com/image.jpg"
 
 # Check cache status
-curl -I "http://multimedia-cache/fetch?url=https://example.com/image.jpg"
+curl -I "http://multimedia-downloader/fetch?url=https://example.com/image.jpg"
 # Look for: X-Cache-Status: HIT
 
 # Health check
-curl http://multimedia-cache/health
+curl http://multimedia-downloader/health
 ```
 
 ### Cache Status Values
@@ -192,7 +192,7 @@ curl http://multimedia-cache/health
 When you request a video through the cache service:
 
 ```bash
-curl "http://multimedia-cache/fetch?url=https://example.com/video.mp4"
+curl "http://multimedia-downloader/fetch?url=https://example.com/video.mp4"
 ```
 
 The NGINX proxy will return:
@@ -287,11 +287,11 @@ io.Copy(file, body)
 To integrate with the pd-sidecar, add these flags:
 
 ```go
-enableMultimediaCache := pflag.Bool("enable-multimedia-cache", false, 
-    "enable multimedia caching service")
-multimediaCacheURL := pflag.String("multimedia-cache-url", 
-    "http://multimedia-cache.default.svc.cluster.local", 
-    "URL of the multimedia cache service")
+enableMultimediaCache := pflag.Bool("enable-multimedia-downloader", false,
+    "enable multimedia downloader service")
+multimediaCacheURL := pflag.String("multimedia-downloader-url",
+    "http://multimedia-downloader.default.svc.cluster.local",
+    "URL of the multimedia downloader service")
 ```
 
 Then initialize the client:
@@ -312,7 +312,7 @@ if *enableMultimediaCache {
 
 ```bash
 # Forward service port to localhost
-kubectl port-forward svc/multimedia-cache 8080:80
+kubectl port-forward svc/multimedia-downloader 8080:80
 
 # Test fetch
 curl "http://localhost:8080/fetch?url=https://httpbin.org/image/jpeg" -o test.jpg
@@ -348,7 +348,7 @@ NGINX access logs include cache status:
 
 ```bash
 # Check service health
-kubectl exec -it deployment/multimedia-cache -- curl localhost/health
+kubectl exec -it deployment/multimedia-downloader -- curl localhost/health
 ```
 
 ## Troubleshooting
@@ -357,17 +357,17 @@ kubectl exec -it deployment/multimedia-cache -- curl localhost/health
 
 1. Check NGINX logs:
    ```bash
-   kubectl logs -l app=multimedia-cache
+   kubectl logs -l app=multimedia-downloader
    ```
 
 2. Verify DNS resolution:
    ```bash
-   kubectl exec -it deployment/multimedia-cache -- nslookup example.com
+   kubectl exec -it deployment/multimedia-downloader -- nslookup example.com
    ```
 
 3. Check cache directory:
    ```bash
-   kubectl exec -it deployment/multimedia-cache -- ls -lh /var/cache/nginx
+   kubectl exec -it deployment/multimedia-downloader -- ls -lh /var/cache/nginx
    ```
 
 ### High Memory Usage
@@ -438,7 +438,7 @@ resources:
 
 You can add your own cache implementation (e.g., Squid, Apache Traffic Server, Redis) by following these steps:
 
-1. Create a new directory: `deploy/components/multimedia-cache/implementations/<name>/`
+1. Create a new directory: `deploy/components/multimedia-downloader/implementations/<name>/`
 2. Add required files:
    - `deployment.yaml` - Kubernetes Deployment with your cache container
    - `<name>-config.yaml` - ConfigMap with cache configuration
@@ -449,10 +449,10 @@ You can add your own cache implementation (e.g., Squid, Apache Traffic Server, R
    - Implements `GET /health` endpoint
    - Returns `X-Cache-Status` header (HIT, MISS, etc.)
    - Supports HTTP range requests for video streaming
-4. Update `deploy/components/multimedia-cache/kustomization.yaml` to reference your implementation
+4. Update `deploy/components/multimedia-downloader/kustomization.yaml` to reference your implementation
 5. Test with the Go client library (no code changes needed)
 
-See `deploy/components/multimedia-cache/implementations/README.md` for detailed requirements.
+See `deploy/components/multimedia-downloader/implementations/README.md` for detailed requirements.
 
 ## Future Enhancements
 

@@ -25,7 +25,7 @@ import (
 	"time"
 )
 
-// CacheClient provides methods to interact with the multimedia cache service
+// CacheClient provides methods to interact with the multimedia downloader service
 type CacheClient struct {
 	baseURL    string
 	httpClient *http.Client
@@ -34,8 +34,8 @@ type CacheClient struct {
 
 // Config holds configuration for the cache client
 type Config struct {
-	// ServiceURL is the URL of the multimedia cache service
-	// Example: "http://multimedia-cache.default.svc.cluster.local"
+	// ServiceURL is the URL of the multimedia downloader service
+	// Example: "http://multimedia-downloader.default.svc.cluster.local"
 	ServiceURL string
 
 	// Enabled controls whether caching is active
@@ -45,7 +45,7 @@ type Config struct {
 	Timeout time.Duration
 }
 
-// NewCacheClient creates a new multimedia cache client
+// NewCacheClient creates a new multimedia downloader client
 func NewCacheClient(config Config) *CacheClient {
 	if config.Timeout == 0 {
 		config.Timeout = 30 * time.Second

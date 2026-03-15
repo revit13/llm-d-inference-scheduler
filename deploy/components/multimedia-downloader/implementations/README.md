@@ -1,6 +1,6 @@
-# Multimedia Cache Implementations
+# Multimedia Downloader Implementations
 
-This directory contains different cache implementation options for the multimedia cache service. Each implementation provides the same API interface but uses different caching technologies.
+This directory contains different cache implementation options for the multimedia downloader service. Each implementation provides the same API interface but uses different caching technologies.
 
 ## Current Implementation
 
@@ -58,7 +58,7 @@ Each implementation must:
    - `Accept-Ranges: bytes` - For video streaming support
 4. **Support HTTP range requests** for video seeking
 5. **Use the same labels**:
-   - `app: multimedia-cache`
+   - `app: multimedia-downloader`
    - `cache-implementation: <name>`
 
 ## Example Alternative Implementations
@@ -75,14 +75,14 @@ After adding a new implementation:
 
 ```bash
 # Deploy the service
-kubectl apply -k deploy/components/multimedia-cache/
+kubectl apply -k deploy/components/multimedia-downloader/
 
 # Verify deployment
-kubectl get pods -l app=multimedia-cache
-kubectl get svc multimedia-cache
+kubectl get pods -l app=multimedia-downloader
+kubectl get svc multimedia-downloader
 
 # Port forward for testing
-kubectl port-forward svc/multimedia-cache 8080:80
+kubectl port-forward svc/multimedia-downloader 8080:80
 
 # Test fetch (should be MISS first time)
 curl -I "http://localhost:8080/fetch?url=https://httpbin.org/image/jpeg"
