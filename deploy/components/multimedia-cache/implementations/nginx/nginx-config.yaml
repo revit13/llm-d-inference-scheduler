@@ -1,0 +1,126 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-multimedia-cache-config
+  labels:
+    app: multimedia-cache
+data:
+  nginx.conf: |
+    user nginx;
+    worker_processes auto;
+    error_log /var/log/nginx/error.log warn;
+    pid /var/run/nginx.pid;
+
+    events {
+        worker_connections 1024;
+    }
+
+    http {
+        include /etc/nginx/mime.types;
+        default_type application/octet-stream;
+
+        log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                        '$status $body_bytes_sent "$http_referer" '
+                        '"$http_user_agent" "$http_x_forwarded_for" '
+                        'cache:$upstream_cache_status range:$http_range';
+
+        access_log /var/log/nginx/access.log main;
+
+        sendfile on;
+        tcp_nopush on;
+        tcp_nodelay on;
+        keepalive_timeout 65;
+
+        # Increase client body size for large uploads (if needed)
+        client_max_body_size 100m;
+
+        # Cache configuration
+        proxy_cache_path /var/cache/nginx
+                         levels=1:2
+                         keys_zone=mm_cache:10m
+                         max_size=10g
+                         inactive=24h
+                         use_temp_path=off;
+
+        # Slice module for efficient caching of large files
+        slice 1m;
+
+        server {
+            listen 80;
+            server_name _;
+
+            # Health check endpoint
+            location /health {
+                access_log off;
+                return 200 "healthy\n";
+                add_header Content-Type text/plain;
+            }
+
+            # Multimedia fetch endpoint
+            location /fetch {
+                # DNS resolver for external URLs
+                resolver 8.8.8.8 1.1.1.1 valid=300s;
+                resolver_timeout 10s;
+
+                # Enable caching
+                proxy_cache mm_cache;
+                
+                # Cache based on full URI including range header for sliced caching
+                proxy_cache_key $uri$is_args$args$slice_range;
+                
+                # Force revalidation to check if content changed
+                proxy_cache_revalidate on;
+                
+                # Cache successful responses - longer for videos
+                proxy_cache_valid 200 206 304 24h;
+                proxy_cache_valid 404 1m;
+                
+                # Cache even during upstream errors
+                proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
+                
+                # Lock to prevent cache stampede
+                proxy_cache_lock on;
+                proxy_cache_lock_timeout 10s;
+                
+                # Add cache status header
+                add_header X-Cache-Status $upstream_cache_status always;
+                
+                # Enable range requests for video streaming
+                proxy_set_header Range $slice_range;
+                
+                # Proxy settings
+                proxy_pass $arg_url;
+                proxy_set_header Host $proxy_host;
+                proxy_set_header User-Agent "llm-d-multimedia-cache/1.0";
+                
+                # Pass through range headers for video seeking
+                proxy_http_version 1.1;
+                proxy_set_header Connection "";
+                
+                # Timeouts - increased for large video files
+                proxy_connect_timeout 30s;
+                proxy_send_timeout 300s;
+                proxy_read_timeout 300s;
+                
+                # Buffer settings - optimized for large files
+                proxy_buffering on;
+                proxy_buffer_size 8k;
+                proxy_buffers 32 8k;
+                proxy_busy_buffers_size 16k;
+                proxy_max_temp_file_size 2048m;
+                
+                # Ignore certain headers to allow caching
+                proxy_ignore_headers X-Accel-Expires Expires Cache-Control Set-Cookie;
+            }
+
+            # Cache management endpoint (optional)
+            location /cache/purge {
+                allow 127.0.0.1;
+                allow 10.0.0.0/8;
+                deny all;
+                
+                proxy_cache_purge mm_cache $arg_url;
+            }
+        }
+    }
+

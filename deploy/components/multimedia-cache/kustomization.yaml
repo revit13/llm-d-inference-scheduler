@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: default
+
+resources:
+# Cache implementation
+- implementations/nginx
+
+# Common resources (shared across all implementations)
+- service.yaml
+
+commonLabels:
+  component: multimedia-cache
+
