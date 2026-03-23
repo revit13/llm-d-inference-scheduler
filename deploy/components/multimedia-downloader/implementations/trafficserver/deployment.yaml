@@ -21,13 +21,13 @@ spec:
         - sh
         - -c
         - |
-          mkdir -p /var/trafficserver/cache
-          mkdir -p /var/trafficserver/logs
+          mkdir -p /opt/ats/var/trafficserver/cache
+          mkdir -p /opt/ats/var/log/trafficserver
           echo "Directories created successfully"
-          ls -la /var/trafficserver
+          ls -la /opt/ats/var/trafficserver
         volumeMounts:
         - name: state-volume
-          mountPath: /var/trafficserver
+          mountPath: /opt/ats/var/trafficserver
         securityContext:
           runAsUser: 0
           runAsGroup: 0
@@ -68,7 +68,7 @@ spec:
           mountPath: /opt/ats/etc/trafficserver/logging.yaml
           subPath: logging.yaml
         - name: state-volume
-          mountPath: /var/trafficserver
+          mountPath: /opt/ats/var/trafficserver
         resources:
           requests:
             memory: "512Mi"

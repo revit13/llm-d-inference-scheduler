@@ -5,13 +5,6 @@ metadata:
 data:
   records.yaml: |
     records:
-      # Directory Configuration
-      - name: proxy.config.local_state_dir
-        value: "/var/trafficserver"
-      
-      - name: proxy.config.log.logfile_dir
-        value: "/var/trafficserver/logs"
-      
       # HTTP Server Configuration
       - name: proxy.config.http.server_ports
         value: "8080"
@@ -131,7 +124,7 @@ data:
 
   storage.config: |
     # Cache storage configuration
-    /var/trafficserver/cache 10G
+    /opt/ats/var/trafficserver/cache 10G
 
   cache.config: |
     # Cache rules for multimedia content
