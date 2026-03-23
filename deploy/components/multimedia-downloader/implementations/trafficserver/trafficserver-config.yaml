@@ -116,10 +116,10 @@ data:
 
   remap.config: |
     # Remap rules for multimedia downloader
-    # Forward all /fetch requests to upstream with URL parameter extraction
-    map http://0.0.0.0:8080/fetch http://0.0.0.0/ @plugin=/opt/trafficserver/libexec/trafficserver/regex_remap.so @pparam=/opt/trafficserver/etc/trafficserver/fetch_remap.txt
     # HTTPS CONNECT tunneling support
-    map tunnel://huggingface.co:443 tunnel://huggingface.co:443
+    map https://huggingface.co:443/ https://huggingface.co:443/
+    # If you have other domains, you can use a wildcard (CAUTION: less secure)
+    # map https://(.*):443/ https://$1:443/
     
 
 
