@@ -6,10 +6,9 @@ metadata:
     app: multimedia-downloader
 data:
   nginx.conf: |
-    user nginx;
     worker_processes auto;
-    error_log /var/log/nginx/error.log warn;
-    pid /var/run/nginx.pid;
+    error_log /var/log/nginx/error.log debug;
+    pid /tmp/nginx.pid;
 
     events {
         worker_connections 1024;
@@ -42,11 +41,8 @@ data:
                          inactive=24h
                          use_temp_path=off;
 
-        # Slice module for efficient caching of large files
-        slice 1m;
-
         server {
-            listen 80;
+            listen 8080;
             server_name _;
 
             # Health check endpoint
@@ -62,9 +58,12 @@ data:
                 resolver 8.8.8.8 1.1.1.1 valid=300s;
                 resolver_timeout 10s;
 
+                # Slice module for efficient caching of large files (per-location)
+                slice 1m;
+
                 # Enable caching
                 proxy_cache mm_cache;
-                
+
                 # Cache based on full URI including range header for sliced caching
                 proxy_cache_key $uri$is_args$args$slice_range;
                 
@@ -77,6 +76,9 @@ data:
                 
                 # Cache even during upstream errors
                 proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
+
+                # Update stale cache in the background
+                proxy_cache_background_update on;
                 
                 # Lock to prevent cache stampede
                 proxy_cache_lock on;
@@ -102,6 +104,10 @@ data:
                 proxy_send_timeout 300s;
                 proxy_read_timeout 300s;
                 
+                # Bandwidth throttling: send first 5MB at full speed, then limit to 1MB/s
+                limit_rate_after 5m;
+                limit_rate 1m;
+
                 # Buffer settings - optimized for large files
                 proxy_buffering on;
                 proxy_buffer_size 8k;

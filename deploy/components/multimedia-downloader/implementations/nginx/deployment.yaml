@@ -5,7 +5,7 @@ metadata:
   labels:
     app: multimedia-downloader
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: multimedia-downloader
@@ -20,7 +20,7 @@ spec:
         imagePullPolicy: IfNotPresent
         ports:
         - name: http
-          containerPort: 80
+          containerPort: 8080
           protocol: TCP
         volumeMounts:
         - name: nginx-config
@@ -38,7 +38,7 @@ spec:
         livenessProbe:
           httpGet:
             path: /health
-            port: 80
+            port: 8080
           initialDelaySeconds: 10
           periodSeconds: 10
           timeoutSeconds: 5
@@ -46,7 +46,7 @@ spec:
         readinessProbe:
           httpGet:
             path: /health
-            port: 80
+            port: 8080
           initialDelaySeconds: 5
           periodSeconds: 5
           timeoutSeconds: 3
