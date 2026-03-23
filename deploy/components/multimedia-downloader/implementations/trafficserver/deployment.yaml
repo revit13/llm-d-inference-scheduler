@@ -21,13 +21,13 @@ spec:
         - sh
         - -c
         - |
-          mkdir -p /opt/ats/var/trafficserver
-          mkdir -p /opt/ats/var/log/trafficserver
+          mkdir -p /opt/trafficserver/var/trafficserver
+          mkdir -p /opt/trafficserver/var/log/trafficserver
           echo "Directories created successfully"
-          ls -laR /opt/ats/var/
+          ls -laR /opt/trafficserver/var/
         volumeMounts:
         - name: state-volume
-          mountPath: /opt/ats/var
+          mountPath: /opt/trafficserver/var
         securityContext:
           runAsUser: 0
           runAsGroup: 0
@@ -41,34 +41,34 @@ spec:
           protocol: TCP
         env:
         - name: TS_ROOT
-          value: "/opt/ats"
+          value: "/opt/trafficserver"
         volumeMounts:
         - name: trafficserver-config
-          mountPath: /opt/ats/etc/trafficserver/records.yaml
+          mountPath: /opt/trafficserver/etc/trafficserver/records.yaml
           subPath: records.yaml
         - name: trafficserver-config
-          mountPath: /opt/ats/etc/trafficserver/remap.config
+          mountPath: /opt/trafficserver/etc/trafficserver/remap.config
           subPath: remap.config
         - name: trafficserver-config
-          mountPath: /opt/ats/etc/trafficserver/fetch_remap.txt
+          mountPath: /opt/trafficserver/etc/trafficserver/fetch_remap.txt
           subPath: fetch_remap.txt
         - name: trafficserver-config
-          mountPath: /opt/ats/etc/trafficserver/storage.config
+          mountPath: /opt/trafficserver/etc/trafficserver/storage.config
           subPath: storage.config
         - name: trafficserver-config
-          mountPath: /opt/ats/etc/trafficserver/cache.config
+          mountPath: /opt/trafficserver/etc/trafficserver/cache.config
           subPath: cache.config
         - name: trafficserver-config
-          mountPath: /opt/ats/etc/trafficserver/plugin.config
+          mountPath: /opt/trafficserver/etc/trafficserver/plugin.config
           subPath: plugin.config
         - name: trafficserver-config
-          mountPath: /opt/ats/etc/trafficserver/ip_allow.yaml
+          mountPath: /opt/trafficserver/etc/trafficserver/ip_allow.yaml
           subPath: ip_allow.yaml
         - name: trafficserver-config
-          mountPath: /opt/ats/etc/trafficserver/logging.yaml
+          mountPath: /opt/trafficserver/etc/trafficserver/logging.yaml
           subPath: logging.yaml
         - name: state-volume
-          mountPath: /opt/ats/var
+          mountPath: /opt/trafficserver/var
         resources:
           requests:
             memory: "512Mi"

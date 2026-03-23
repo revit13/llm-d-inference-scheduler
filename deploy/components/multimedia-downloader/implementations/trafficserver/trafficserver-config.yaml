@@ -110,6 +110,10 @@ data:
       - name: proxy.config.http.cache.generation
         value: -1
 
+      # Plugin directory
+      - name: proxy.config.plugin.plugin_dir
+        value: "/opt/trafficserver/libexec/trafficserver"
+
   remap.config: |
     # Remap rules for multimedia downloader
     # Forward all /fetch requests to upstream with URL parameter extraction
@@ -124,7 +128,7 @@ data:
 
   storage.config: |
     # Cache storage configuration
-    /opt/ats/var/trafficserver/cache 10G
+    /opt/trafficserver/var/trafficserver/cache 10G
 
   cache.config: |
     # Cache rules for multimedia content
