@@ -74,8 +74,7 @@ BUILD_REF ?= $(shell git describe --abbrev=0 2>/dev/null)
 # go source files
 SRC = $(shell find . -type f -name '*.go')
 
-# CGO_ENABLED=1 is required for ZMQ (linking handled via pkg-config)
-CGO_ENABLED=1
+CGO_ENABLED=0
 
 
 # Internal variables for generic targets
@@ -142,7 +141,8 @@ lint: check-golangci-lint check-typos ## Run lint (use LINT_NEW_ONLY=true to onl
 		printf "\033[33mChecking all code (LINT_NEW_ONLY=false, default)\033[0m\n"; \
 		$(GOLANGCI_LINT) run; \
 	fi
-	$(TYPOS)
+	@echo "Checking for spelling errors with typos..."
+	@$(TYPOS) --format brief
 
 .PHONY: test
 test: test-unit test-e2e ## Run all tests (unit and e2e)
@@ -151,12 +151,12 @@ test: test-unit test-e2e ## Run all tests (unit and e2e)
 test-unit: test-unit-epp test-unit-sidecar ## Run unit tests
 
 .PHONY: test-unit-%
-test-unit-%: check-dependencies ## Run unit tests
+test-unit-%: ## Run unit tests
 	@printf "\033[33;1m==== Running Unit Tests ====\033[0m\n"
 	@go test -v $$($($*_TEST_FILES) | tr '\n' ' ')
 
 .PHONY: test-filter
-test-filter: check-dependencies ## Run filtered unit tests (usage: make test-filter PATTERN=TestName TYPE=epp)
+test-filter: ## Run filtered unit tests (usage: make test-filter PATTERN=TestName TYPE=epp)
 	@if [ -z "$(PATTERN)" ]; then \
 		echo "ERROR: PATTERN is required. Usage: make test-filter PATTERN=TestName [TYPE=epp|sidecar]"; \
 		exit 1; \
@@ -170,7 +170,7 @@ test-filter: check-dependencies ## Run filtered unit tests (usage: make test-fil
 	fi
 
 .PHONY: test-integration
-test-integration: check-dependencies ## Run integration tests
+test-integration: ## Run integration tests
 	@printf "\033[33;1m==== Running Integration Tests ====\033[0m\n"
 	go test -v -tags=integration_tests ./test/integration/
 
@@ -178,6 +178,13 @@ test-integration: check-dependencies ## Run integration tests
 test-e2e: image-build image-build-uds-tokenizer image-pull ## Run end-to-end tests against a new kind cluster
 	@printf "\033[33;1m==== Running End to End Tests ====\033[0m\n"
 	PATH=$(LOCALBIN):$$PATH ./test/scripts/run_e2e.sh
+
+.PHONY: bench-tokenizer
+bench-tokenizer: ## Run external tokenizer + scorer benchmark (requires kind cluster with EPP deployed)
+	@printf "\033[33;1m==== Running External Tokenizer Benchmark ====\033[0m\n"
+	@printf "Ensure the kind cluster is running with the external tokenizer config.\n"
+	@printf "Run 'EXTERNAL_TOKENIZER_ENABLED=true KV_CACHE_ENABLED=true make env-dev-kind' first.\n\n"
+	go test -bench=. -benchmem -count=5 -timeout=5m ./test/profiling/tokenizerbench/
 
 .PHONY: post-deploy-test
 post-deploy-test: ## Run post deployment tests
@@ -198,7 +205,7 @@ build-%: check-go ## Build the project
 ##@ Container image Build/Push/Pull
 
 .PHONY:	image-build
-image-build: image-build-epp image-build-sidecar ## Build Container image using $(CONTAINER_RUNTIME)
+image-build: image-build-epp image-build-sidecar image-build-uds-tokenizer ## Build Container image using $(CONTAINER_RUNTIME)
 
 # Path to kv-cache repo for UDS tokenizer image build (can be overridden)
 KV_CACHE_PATH ?= $(shell go list -m -f '{{.Dir}}' github.com/llm-d/llm-d-kv-cache 2>/dev/null)

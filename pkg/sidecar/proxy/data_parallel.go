@@ -16,8 +16,9 @@ import (
 // dataParallelHandler checks if Data Parallel handling is needed.
 // Returns true if Data Parallel processing was needed
 func (s *Server) dataParallelHandler(w http.ResponseWriter, r *http.Request) bool {
-	dataParallelPodHostPort := r.Header.Get(common.DataParallelPodHeader)
+	dataParallelPodHostPort := r.Header.Get(common.DataParallelEndpointHeader)
 	if dataParallelPodHostPort != "" {
+		s.logger.Info("The use of the x-data-parallel-host-port is deprecated. Use Istio >= 1.28.1.")
 		handler := s.dataParallelProxies[dataParallelPodHostPort]
 		if handler != nil {
 			s.logger.V(4).Info("Data parallel routing", "to", dataParallelPodHostPort)
