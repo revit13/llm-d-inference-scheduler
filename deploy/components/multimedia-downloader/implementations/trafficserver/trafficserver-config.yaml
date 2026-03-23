@@ -119,16 +119,15 @@ data:
     # Forward all /fetch requests to upstream with URL parameter extraction
     map http://0.0.0.0:8080/fetch http://0.0.0.0/ @plugin=/opt/trafficserver/libexec/trafficserver/regex_remap.so @pparam=/opt/trafficserver/etc/trafficserver/fetch_remap.txt
     
-    # Health check endpoint
-    map http://0.0.0.0:8080/health http://127.0.0.1:8080/health
+
 
   fetch_remap.txt: |
     # Extract URL parameter and proxy to it
     ^/fetch\?url=(.*)$ $1
 
   storage.config: |
-    # Cache storage configuration
-    /opt/trafficserver/var/trafficserver/cache 10G
+    # RAM-only cache (no disk storage)
+    # Disk cache disabled to avoid container storage issues
 
   cache.config: |
     # Cache rules for multimedia content
