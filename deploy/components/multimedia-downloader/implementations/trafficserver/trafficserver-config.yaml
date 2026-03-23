@@ -117,7 +117,7 @@ data:
   remap.config: |
     # Remap rules for multimedia downloader
     # Forward all /fetch requests to upstream with URL parameter extraction
-    map http://0.0.0.0:8080/fetch http://0.0.0.0/ @plugin=regex_remap.so @pparam=fetch_remap.txt
+    map http://0.0.0.0:8080/fetch http://0.0.0.0/ @plugin=/opt/trafficserver/libexec/trafficserver/regex_remap.so @pparam=/opt/trafficserver/etc/trafficserver/fetch_remap.txt
     
     # Health check endpoint - return local response
     map http://0.0.0.0:8080/health http://127.0.0.1:8080/health @plugin=healthchecks.so
@@ -163,9 +163,9 @@ data:
 
   plugin.config: |
     # Load required plugins
-    regex_remap.so
-    healthchecks.so
-    xdebug.so
+    /opt/trafficserver/libexec/trafficserver/regex_remap.so
+    /opt/trafficserver/libexec/trafficserver/healthchecks.so
+    /opt/trafficserver/libexec/trafficserver/xdebug.so
   
   logging.yaml: |
     # Logging configuration for cache hit/miss tracking
