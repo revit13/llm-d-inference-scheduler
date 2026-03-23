@@ -1,0 +1,105 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: multimedia-downloader
+  labels:
+    app: multimedia-downloader
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: multimedia-downloader
+  template:
+    metadata:
+      labels:
+        app: multimedia-downloader
+    spec:
+      initContainers:
+      - name: init-directories
+        image: busybox:1.36
+        command:
+        - sh
+        - -c
+        - |
+          mkdir -p /var/trafficserver/cache
+          mkdir -p /var/trafficserver/logs
+          echo "Directories created successfully"
+          ls -la /var/trafficserver
+        volumeMounts:
+        - name: state-volume
+          mountPath: /var/trafficserver
+        securityContext:
+          runAsUser: 0
+          runAsGroup: 0
+      containers:
+      - name: trafficserver
+        image: shaker/trafficserver:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        env:
+        - name: TS_ROOT
+          value: "/opt/ats"
+        volumeMounts:
+        - name: trafficserver-config
+          mountPath: /opt/ats/etc/trafficserver/records.yaml
+          subPath: records.yaml
+        - name: trafficserver-config
+          mountPath: /opt/ats/etc/trafficserver/remap.config
+          subPath: remap.config
+        - name: trafficserver-config
+          mountPath: /opt/ats/etc/trafficserver/fetch_remap.txt
+          subPath: fetch_remap.txt
+        - name: trafficserver-config
+          mountPath: /opt/ats/etc/trafficserver/storage.config
+          subPath: storage.config
+        - name: trafficserver-config
+          mountPath: /opt/ats/etc/trafficserver/cache.config
+          subPath: cache.config
+        - name: trafficserver-config
+          mountPath: /opt/ats/etc/trafficserver/plugin.config
+          subPath: plugin.config
+        - name: trafficserver-config
+          mountPath: /opt/ats/etc/trafficserver/ip_allow.yaml
+          subPath: ip_allow.yaml
+        - name: trafficserver-config
+          mountPath: /opt/ats/etc/trafficserver/logging.yaml
+          subPath: logging.yaml
+        - name: state-volume
+          mountPath: /var/trafficserver
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: trafficserver-config
+        configMap:
+          name: trafficserver-multimedia-downloader-config
+      - name: state-volume
+        emptyDir:
+          sizeLimit: 11Gi
+      securityContext:
+        fsGroup: 0
+        runAsUser: 0
+        runAsGroup: 0

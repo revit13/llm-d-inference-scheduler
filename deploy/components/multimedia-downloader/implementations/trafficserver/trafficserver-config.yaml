@@ -1,0 +1,192 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trafficserver-multimedia-downloader-config
+data:
+  records.yaml: |
+    records:
+      # Directory Configuration
+      - name: proxy.config.local_state_dir
+        value: "/var/trafficserver"
+      
+      - name: proxy.config.log.logfile_dir
+        value: "/var/trafficserver/logs"
+      
+      # HTTP Server Configuration
+      - name: proxy.config.http.server_ports
+        value: "8080"
+      
+      # Cache Configuration
+      - name: proxy.config.cache.ram_cache.size
+        value: 536870912  # 512MB RAM cache
+      
+      - name: proxy.config.cache.limits.http.max_alts
+        value: 5
+      
+      # Enable caching
+      - name: proxy.config.http.cache.http
+        value: 1
+      
+      # Cache control
+      - name: proxy.config.http.cache.ignore_client_no_cache
+        value: 0
+      
+      - name: proxy.config.http.cache.ignore_server_no_cache
+        value: 0
+      
+      # Range request support (critical for video streaming)
+      - name: proxy.config.http.cache.range.lookup
+        value: 1
+      
+      - name: proxy.config.http.cache.range.write
+        value: 1
+      
+      # Background fill for large files
+      - name: proxy.config.cache.enable_read_while_writer
+        value: 1
+      
+      # Logging - Enable debug mode
+      - name: proxy.config.diags.debug.enabled
+        value: 1
+      
+      - name: proxy.config.diags.debug.tags
+        value: "http|cache|dns"
+      
+      # Output logs to stdout for Kubernetes
+      - name: proxy.config.diags.output.diag
+        value: "O"
+      
+      - name: proxy.config.diags.output.debug
+        value: "O"
+      
+      - name: proxy.config.diags.output.status
+        value: "O"
+      
+      - name: proxy.config.diags.output.note
+        value: "O"
+      
+      - name: proxy.config.diags.output.warning
+        value: "O"
+      
+      - name: proxy.config.diags.output.error
+        value: "O"
+      
+      - name: proxy.config.diags.output.fatal
+        value: "O"
+      
+      - name: proxy.config.diags.output.alert
+        value: "O"
+      
+      - name: proxy.config.diags.output.emergency
+        value: "O"
+      
+      # Enable access logging with cache status
+      - name: proxy.config.log.logging_enabled
+        value: 3
+      
+      - name: proxy.config.log.max_space_mb_for_logs
+        value: 1000
+      
+      - name: proxy.config.log.max_space_mb_headroom
+        value: 100
+      
+      - name: proxy.config.log.rolling_enabled
+        value: 1
+      
+      - name: proxy.config.log.rolling_interval_sec
+        value: 3600
+      
+      - name: proxy.config.log.rolling_size_mb
+        value: 100
+      
+      # Connection settings
+      - name: proxy.config.http.keep_alive_enabled_in
+        value: 1
+      
+      - name: proxy.config.http.keep_alive_enabled_out
+        value: 1
+      
+      # Performance tuning
+      - name: proxy.config.net.connections_throttle
+        value: 10000
+      
+      - name: proxy.config.cache.threads_per_disk
+        value: 8
+      
+      # Add X-Cache-Status header
+      - name: proxy.config.http.cache.generation
+        value: -1
+
+  remap.config: |
+    # Remap rules for multimedia downloader
+    # Forward all /fetch requests to upstream with URL parameter extraction
+    map http://0.0.0.0:8080/fetch http://0.0.0.0/ @plugin=regex_remap.so @pparam=fetch_remap.txt
+    
+    # Health check endpoint - return local response
+    map http://0.0.0.0:8080/health http://127.0.0.1:8080/health @plugin=healthchecks.so
+
+  fetch_remap.txt: |
+    # Extract URL parameter and proxy to it
+    ^/fetch\?url=(.*)$ $1
+
+  storage.config: |
+    # Cache storage configuration
+    /var/trafficserver/cache 10G
+
+  cache.config: |
+    # Cache rules for multimedia content
+    # Cache video files for 7 days
+    dest_domain=. suffix=mp4 ttl-in-cache=7d
+    dest_domain=. suffix=webm ttl-in-cache=7d
+    dest_domain=. suffix=mkv ttl-in-cache=7d
+    dest_domain=. suffix=avi ttl-in-cache=7d
+    dest_domain=. suffix=mov ttl-in-cache=7d
+    dest_domain=. suffix=flv ttl-in-cache=7d
+    dest_domain=. suffix=m4v ttl-in-cache=7d
+    
+    # Cache audio files for 7 days
+    dest_domain=. suffix=mp3 ttl-in-cache=7d
+    dest_domain=. suffix=wav ttl-in-cache=7d
+    dest_domain=. suffix=flac ttl-in-cache=7d
+    dest_domain=. suffix=m4a ttl-in-cache=7d
+    dest_domain=. suffix=aac ttl-in-cache=7d
+    dest_domain=. suffix=ogg ttl-in-cache=7d
+    
+    # Cache images for 7 days
+    dest_domain=. suffix=jpg ttl-in-cache=7d
+    dest_domain=. suffix=jpeg ttl-in-cache=7d
+    dest_domain=. suffix=png ttl-in-cache=7d
+    dest_domain=. suffix=gif ttl-in-cache=7d
+    dest_domain=. suffix=webp ttl-in-cache=7d
+    dest_domain=. suffix=svg ttl-in-cache=7d
+    dest_domain=. suffix=bmp ttl-in-cache=7d
+    
+    # Default: cache everything for 1 day
+    dest_domain=. ttl-in-cache=1d
+
+  plugin.config: |
+    # Load required plugins
+    regex_remap.so
+    healthchecks.so
+    xdebug.so
+  
+  logging.yaml: |
+    # Logging configuration for cache hit/miss tracking
+    formats:
+      - name: custom
+        format: '%<cqtq> %<ttms> %<chi> %<crc>/%<pssc> %<psql> %<cqhm> %<cquc> %<caun> %<phr>/%<pqsn> %<psct> %<pscl>'
+    
+    logs:
+      - filename: access
+        format: custom
+        mode: ascii
+
+  ip_allow.yaml: |
+    # Allow all IP addresses
+    ip_allow:
+      - apply: in
+        ip_addrs: 0.0.0.0-255.255.255.255
+        action: allow
+      - apply: in
+        ip_addrs: "::-ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"
+        action: allow

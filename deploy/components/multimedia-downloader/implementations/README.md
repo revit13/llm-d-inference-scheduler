@@ -2,7 +2,7 @@
 
 This directory contains different cache implementation options for the multimedia downloader service. Each implementation provides the same API interface but uses different caching technologies.
 
-## Current Implementation
+## Available Implementations
 
 ### [NGINX](https://nginx.org/) (Default)
 - **Directory**: `nginx/`
@@ -17,6 +17,24 @@ This directory contains different cache implementation options for the multimedi
   - Mature and battle-tested
   - Low resource usage
   - Extensive documentation
+
+### [Apache Traffic Server](https://trafficserver.apache.org/)
+- **Directory**: `trafficserver/`
+- **Image**: `apache/trafficserver:10.0.6`
+- **Official Website**: https://trafficserver.apache.org/
+- **Documentation**: https://docs.trafficserver.apache.org/en/latest/
+- **GitHub**: https://github.com/apache/trafficserver
+- **Best for**: High-performance CDN workloads, large-scale deployments, HTTP/2 support
+- **Features**:
+  - Scalable to 10,000+ requests per second
+  - Full HTTP/1.1 and HTTP/2 support
+  - Advanced range request handling for video streaming
+  - Read-while-writer for efficient large file streaming
+  - 512MB RAM cache + 10GB disk cache
+  - Sophisticated cache control and invalidation
+  - Battle-tested at CDN scale (terabits/second)
+  - Extensible plugin system
+  - Configurable TTL per media type (7 days for video/audio/images, 1 day default)
 
 ## Switching to a Different Cache Implementation
 
@@ -61,12 +79,42 @@ Each implementation must:
    - `app: multimedia-downloader`
    - `cache-implementation: <name>`
 
+## Switching Between Implementations
+
+To switch from NGINX to Apache Traffic Server:
+
+1. Edit `deploy/components/multimedia-downloader/kustomization.yaml`:
+   ```yaml
+   resources:
+   # Cache implementation
+   - implementations/trafficserver  # Change from nginx to trafficserver
+   - service.yaml
+   ```
+
+2. Apply the changes:
+   ```bash
+   kubectl apply -k deploy/components/multimedia-downloader/
+   ```
+
+## Implementation Comparison
+
+| Feature | NGINX | Apache Traffic Server |
+|---------|-------|----------------------|
+| **Performance** | Excellent | Excellent (10K+ req/s) |
+| **HTTP/2 Support** | Yes | Yes (full compliance) |
+| **Range Requests** | Yes (sliced) | Yes (optimized) |
+| **RAM Cache** | No | Yes (512MB) |
+| **Disk Cache** | Yes (10GB) | Yes (10GB) |
+| **Resource Usage** | Low (256Mi-1Gi) | Medium (512Mi-2Gi) |
+| **Configuration** | Simple | Advanced |
+| **Maturity** | Very mature | Mature (CDN-proven) |
+| **Best Use Case** | General purpose | High-scale CDN |
+
 ## Example Alternative Implementations
 
 You could add implementations for:
 - **Varnish**: High-performance HTTP accelerator with VCL
 - **Squid**: Full-featured web proxy cache
-- **Apache Traffic Server**: Scalable HTTP/HTTPS cache
 - **Redis**: In-memory data structure store with caching capabilities
 
 ## Testing Your Implementation

@@ -99,6 +99,14 @@ spec:
           value: "8200"
         - name: PYTHONHASHSEED
           value: "42"
+        - name: HF_ENDPOINT
+          value: "http://multimedia-downloader.epd.svc.cluster.local:8081"
+        - name: HTTP_PROXY
+          value: "http://multimedia-downloader.epd.svc.cluster.local:80"
+        - name: HTTPS_PROXY
+          value: "http://multimedia-downloader.epd.svc.cluster.local:80"
+        - name: NO_PROXY
+          value: "localhost,127.0.0.1,.svc.cluster.local"
         volumeMounts:
         - name: tokenizer-cache
           mountPath: /tokenizer-cache
