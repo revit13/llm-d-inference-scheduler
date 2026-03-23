@@ -119,8 +119,8 @@ data:
     # Forward all /fetch requests to upstream with URL parameter extraction
     map http://0.0.0.0:8080/fetch http://0.0.0.0/ @plugin=/opt/trafficserver/libexec/trafficserver/regex_remap.so @pparam=/opt/trafficserver/etc/trafficserver/fetch_remap.txt
     
-    # Health check endpoint - return local response
-    map http://0.0.0.0:8080/health http://127.0.0.1:8080/health @plugin=healthchecks.so
+    # Health check endpoint
+    map http://0.0.0.0:8080/health http://127.0.0.1:8080/health
 
   fetch_remap.txt: |
     # Extract URL parameter and proxy to it
@@ -162,9 +162,7 @@ data:
     dest_domain=. ttl-in-cache=1d
 
   plugin.config: |
-    # Load required plugins
-    /opt/trafficserver/libexec/trafficserver/healthchecks.so
-    /opt/trafficserver/libexec/trafficserver/xdebug.so
+    # No global plugins needed; regex_remap is loaded as a remap plugin
   
   logging.yaml: |
     # Logging configuration for cache hit/miss tracking
