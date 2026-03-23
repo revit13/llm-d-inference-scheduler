@@ -39,7 +39,6 @@ spec:
         - name: http
           containerPort: 8080
           protocol: TCP
-        args: ["-T", ".*"]
         env:
         - name: TS_ROOT
           value: "/opt/trafficserver"
