@@ -163,7 +163,6 @@ data:
 
   plugin.config: |
     # Load required plugins
-    /opt/trafficserver/libexec/trafficserver/regex_remap.so
     /opt/trafficserver/libexec/trafficserver/healthchecks.so
     /opt/trafficserver/libexec/trafficserver/xdebug.so
   
