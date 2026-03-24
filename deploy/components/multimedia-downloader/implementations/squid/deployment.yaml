@@ -47,7 +47,7 @@ spec:
             memory: "512Mi"
             cpu: "250m"
           limits:
-            memory: "2Gi"
+            memory: "4Gi"
             cpu: "2000m"
         livenessProbe:
           tcpSocket:
@@ -69,4 +69,4 @@ spec:
           name: squid-multimedia-downloader-config
       - name: cache-volume
         emptyDir:
-          sizeLimit: 1Gi
+          sizeLimit: 11Gi

@@ -12,8 +12,8 @@ data:
     cache_dir ufs /var/cache/squid 10000 16 256
     
     # RAM cache settings
-    cache_mem 512 MB
-    maximum_object_size_in_memory 200 MB
+    cache_mem 128 MB
+    maximum_object_size_in_memory 10 MB
 
     # Allow large objects (Essential for models)
     maximum_object_size 100 GB
