@@ -31,7 +31,7 @@ data:
 
     # Log to stdout
     access_log stdio:/dev/stdout
-    cache_log stdio:/dev/stderr
+    cache_log /dev/null
 
     # Coalescing: serve one upstream request to multiple waiting clients
     collapsed_forwarding on
