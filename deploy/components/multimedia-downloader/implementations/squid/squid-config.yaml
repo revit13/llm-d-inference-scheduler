@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: squid-multimedia-downloader-config
+data:
+  squid.conf: |
+    # HTTP proxy port
+    http_port 8080
+
+    # Cache directory - 10GB disk cache
+    cache_dir ufs /var/cache/squid 10240 16 256
+
+    # RAM cache
+    cache_mem 512 MB
+    maximum_object_size_in_memory 10 MB
+
+    # Allow large objects (model files can be many GB)
+    maximum_object_size 100 GB
+    minimum_object_size 0 KB
+
+    # Cache model files aggressively
+    refresh_pattern -i \.(bin|safetensors|gguf|pt|pth|onnx|msgpack|json|yaml|txt)$ 10080 100% 43200 override-expire ignore-no-cache ignore-no-store
+    refresh_pattern . 0 20% 4320
+
+    # Access control
+    acl all src 0.0.0.0/0
+    acl CONNECT method CONNECT
+
+    # Allow HTTPS CONNECT tunneling
+    http_access allow CONNECT
+    http_access allow all
+
+    # Log to stdout
+    access_log stdio:/dev/stdout
+    cache_log stdio:/dev/stderr
+
+    # Don't require validation from upstream for cached content
+    cache_peer_access allow all
+
+    # Coalescing: serve one upstream request to multiple waiting clients
+    collapsed_forwarding on
+
+    # DNS
+    dns_nameservers 8.8.8.8 8.8.4.4
