@@ -23,7 +23,6 @@ data:
     refresh_pattern . 0 20% 4320
 
     # Access control
-    acl all src 0.0.0.0/0
     acl CONNECT method CONNECT
 
     # Allow HTTPS CONNECT tunneling
@@ -33,9 +32,6 @@ data:
     # Log to stdout
     access_log stdio:/dev/stdout
     cache_log stdio:/dev/stderr
-
-    # Don't require validation from upstream for cached content
-    cache_peer_access allow all
 
     # Coalescing: serve one upstream request to multiple waiting clients
     collapsed_forwarding on
