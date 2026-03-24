@@ -30,7 +30,7 @@ data:
     http_access allow all
 
     # Log to stdout
-    access_log stdio:/dev/stdout
+    access_log /dev/null
     cache_log /dev/null
 
     # Coalescing: serve one upstream request to multiple waiting clients
