@@ -32,6 +32,8 @@ spec:
       - name: squid
         image: ubuntu/squid:6.1-23.10_beta
         imagePullPolicy: IfNotPresent
+        command: ["squid"]
+        args: ["-NYCd1"]
         ports:
         - name: http
           containerPort: 8080
