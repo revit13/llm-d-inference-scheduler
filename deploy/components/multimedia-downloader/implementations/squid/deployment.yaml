@@ -71,4 +71,4 @@ spec:
           name: squid-multimedia-downloader-config
       - name: cache-volume
         emptyDir:
-          sizeLimit: 11Gi
+          sizeLimit: 3Gi

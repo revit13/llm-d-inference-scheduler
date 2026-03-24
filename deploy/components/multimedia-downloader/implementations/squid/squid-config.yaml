@@ -9,11 +9,16 @@ data:
 
     # --- Storage Configuration ---
     # Set to 10000 (10GB) to actually fit model weights
-    cache_dir ufs /var/cache/squid 10000 16 256
-    
+    cache_dir ufs /var/cache/squid 2048 16 256
+
     # RAM cache settings
     cache_mem 128 MB
     maximum_object_size_in_memory 10 MB
+
+    # Reduce in-memory index overhead
+    fqdncache_size 100
+    ipcache_size 100
+    memory_pools off
 
     # Allow large objects (Essential for models)
     maximum_object_size 100 GB
