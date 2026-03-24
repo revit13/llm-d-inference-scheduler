@@ -1,40 +1,48 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: squid-multimedia-downloader-config
+  name: squid-config
 data:
   squid.conf: |
-    # HTTP proxy port
+    # Listen on 8080 as requested
     http_port 8080
 
-    # Cache directory - 10GB disk cache
-    cache_dir ufs /var/cache/squid 512 16 256
-
-    # RAM cache
+    # --- Storage Configuration ---
+    # Set to 10000 (10GB) to actually fit model weights
+    cache_dir ufs /var/cache/squid 10000 16 256
+    
+    # RAM cache settings
     cache_mem 512 MB
-    maximum_object_size_in_memory 10 MB
+    maximum_object_size_in_memory 200 MB
 
-    # Allow large objects (model files can be many GB)
+    # Allow large objects (Essential for models)
     maximum_object_size 100 GB
     minimum_object_size 0 KB
 
-    # Cache model files aggressively
+    # --- Aggressive Caching for Models ---
+    # We want to ignore "no-cache" headers from Hugging Face to ensure we save bandwidth
     refresh_pattern -i \.(bin|safetensors|gguf|pt|pth|onnx|msgpack|json|yaml|txt)$ 10080 100% 43200 override-expire ignore-no-cache ignore-no-store
     refresh_pattern . 0 20% 4320
 
-    # Access control
+    # --- Access Control ---
+    # Define ACLs correctly for Squid 6+
     acl CONNECT method CONNECT
-
-    # Allow HTTPS CONNECT tunneling
+    
+    # Allow local connections
+    http_access allow localhost
+    # Allow HTTPS CONNECT tunneling and all traffic
     http_access allow CONNECT
     http_access allow all
 
-    # Log to stdout
-    access_log /dev/null
-    cache_log /dev/null
+    # --- Logging ---
+    # Setting these to /dev/null makes debugging impossible.
+    # For K8s, it's better to log to stdout/stderr.
+    access_log stdio:/dev/stdout
+    cache_log stdio:/dev/stderr
 
-    # Coalescing: serve one upstream request to multiple waiting clients
+    # --- Performance ---
+    # Prevents multiple vLLM pods from downloading the same file simultaneously
     collapsed_forwarding on
-
-    # DNS
+    
+    # External DNS to ensure we can resolve huggingface.co
     dns_nameservers 8.8.8.8 8.8.4.4
