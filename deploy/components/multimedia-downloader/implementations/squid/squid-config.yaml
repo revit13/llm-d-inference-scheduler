@@ -38,7 +38,7 @@ data:
     # Setting these to /dev/null makes debugging impossible.
     # For K8s, it's better to log to stdout/stderr.
     access_log stdio:/dev/stdout
-    cache_log stdio:/dev/stderr
+    cache_log /var/cache/squid/cache.log
 
     # --- Performance ---
     # Prevents multiple vLLM pods from downloading the same file simultaneously
