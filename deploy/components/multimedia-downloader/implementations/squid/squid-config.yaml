@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: squid-config
+  name: squid-multimedia-downloader-config
 data:
   squid.conf: |
     # Listen on 8080 as requested
