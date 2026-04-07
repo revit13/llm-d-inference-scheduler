@@ -3,7 +3,7 @@ kind: Kustomization
 
 resources:
 # Cache implementation
-- implementations/trafficserver
+- implementations/squid
 
 # Common resources (shared across all implementations)
 - service.yaml
