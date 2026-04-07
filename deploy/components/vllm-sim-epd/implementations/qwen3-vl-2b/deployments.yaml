@@ -81,9 +81,9 @@ spec:
         - name: PORT
           value: "8000"
         - name: HTTP_PROXY
-          value: "http://multimedia-downloader.default.svc.cluster.local:80"
+          value: "http://multimedia-downloader.epd.svc.cluster.local:80"
         - name: HTTPS_PROXY
-          value: "http://multimedia-downloader.default.svc.cluster.local:80"
+          value: "http://multimedia-downloader.epd.svc.cluster.local:80"
         - name: NO_PROXY
           value: "localhost,127.0.0.1,.svc.cluster.local"
         volumeMounts:
