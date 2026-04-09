@@ -1,0 +1,20 @@
+{
+  "model": "Qwen/Qwen3-VL-2B-Instruct",
+  "messages": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "What animal is shown in this image?"
+        },
+        {
+          "type": "image_url",
+          "image_url": {
+            "url": "https://images.dog.ceo/breeds/poodle-standard/n02113799_2280.jpg"
+          }
+        }
+      ]
+    }
+  ]
+}
