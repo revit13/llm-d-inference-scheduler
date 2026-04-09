@@ -1,0 +1,135 @@
+# Kubernetes Strategic Merge Patch to Enable SSL Bump Support for vLLM Deployments
+# This patch adds CA certificate trust and proxy configuration to vLLM pods
+#
+# Apply to deployments:
+# - ms-e-dp-disaggregation-llm-d-modelservice-encode
+# - ms-e-dp-disaggregation-llm-d-modelservice-prefill-decode
+#
+# Usage:
+#   kubectl patch deployment ms-e-dp-disaggregation-llm-d-modelservice-encode \
+#     --patch-file vllm-ssl-bump-patch.yaml --type strategic
+#
+#   kubectl patch deployment ms-e-dp-disaggregation-llm-d-modelservice-prefill-decode \
+#     --patch-file vllm-ssl-bump-patch.yaml --type strategic
+
+spec:
+  template:
+    spec:
+      initContainers:
+      - name: install-squid-ca-cert
+        image: ubuntu:22.04
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+          echo "=========================================="
+          echo "Installing Squid CA Certificate"
+          echo "=========================================="
+          
+          # Install ca-certificates package (suppress debconf warnings)
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update -qq
+          apt-get install -y -qq ca-certificates openssl 2>&1 | grep -v "debconf" || true
+          
+          # Copy Squid CA certificate to system trust store
+          echo "Copying CA certificate..."
+          cp /tmp/squid-ca/squid-ca-cert.pem /usr/local/share/ca-certificates/squid-proxy-ca.crt
+          
+          # Verify certificate file exists
+          if [ ! -f /usr/local/share/ca-certificates/squid-proxy-ca.crt ]; then
+            echo "✗ Failed to copy CA certificate"
+            exit 1
+          fi
+          echo "✓ CA certificate copied"
+          
+          # Update CA certificates
+          echo "Updating CA trust store..."
+          update-ca-certificates 2>&1 | grep -v "debconf" || true
+          
+          # Verify certificate was added to the bundle
+          if [ -f /etc/ssl/certs/squid-proxy-ca.pem ]; then
+            echo "✓ Squid CA certificate installed successfully"
+          else
+            echo "⚠ Certificate may be installed but symlink not found (this is OK)"
+          fi
+          
+          # Verify the certificate is in the CA bundle
+          if grep -q "BEGIN CERTIFICATE" /usr/local/share/ca-certificates/squid-proxy-ca.crt; then
+            echo "✓ Certificate file is valid"
+          else
+            echo "✗ Certificate file is invalid"
+            exit 1
+          fi
+          
+          # Copy updated certificates to shared volume for main container
+          echo "Copying certificates to shared volume..."
+          cp -r /etc/ssl/certs/* /shared-certs/ 2>/dev/null || true
+          
+          # Ensure ca-certificates.crt exists in shared volume
+          if [ -f /etc/ssl/certs/ca-certificates.crt ]; then
+            cp /etc/ssl/certs/ca-certificates.crt /shared-certs/
+            echo "✓ CA bundle copied to shared volume"
+          fi
+          
+          echo "✓ Certificate installation complete"
+          echo "=========================================="
+        volumeMounts:
+        - name: squid-ca-cert
+          mountPath: /tmp/squid-ca
+          readOnly: true
+        - name: shared-certs
+          mountPath: /shared-certs
+      
+      containers:
+      - name: vllm  # This should match your existing container name
+        env:
+        # Proxy configuration
+        - name: HTTP_PROXY
+          value: "http://multimedia-downloader:80"
+        - name: HTTPS_PROXY
+          value: "http://multimedia-downloader:80"
+        - name: http_proxy
+          value: "http://multimedia-downloader:80"
+        - name: https_proxy
+          value: "http://multimedia-downloader:80"
+        - name: NO_PROXY
+          value: "localhost,127.0.0.1,.svc,.cluster.local,10.0.0.0/8,172.30.0.0/16"
+        - name: no_proxy
+          value: "localhost,127.0.0.1,.svc,.cluster.local,10.0.0.0/8,172.30.0.0/16"
+        
+        # SSL/TLS certificate configuration
+        - name: SSL_CERT_DIR
+          value: "/etc/ssl/certs"
+        - name: SSL_CERT_FILE
+          value: "/etc/ssl/certs/ca-certificates.crt"
+        - name: REQUESTS_CA_BUNDLE
+          value: "/etc/ssl/certs/ca-certificates.crt"
+        - name: CURL_CA_BUNDLE
+          value: "/etc/ssl/certs/ca-certificates.crt"
+        - name: PIP_CERT
+          value: "/etc/ssl/certs/ca-certificates.crt"
+        
+        # Python-specific SSL configuration
+        - name: PYTHONHTTPSVERIFY
+          value: "1"
+        
+        volumeMounts:
+        - name: shared-certs
+          mountPath: /etc/ssl/certs
+          readOnly: true
+      
+      volumes:
+      # Squid CA certificate (public only) from Kubernetes Secret
+      - name: squid-ca-cert
+        secret:
+          secretName: squid-ca-public-cert
+          items:
+          - key: squid-ca-cert.pem
+            path: squid-ca-cert.pem
+      
+      # Shared volume for CA certificates between init and main container
+      - name: shared-certs
+        emptyDir: {}
+
+# Made with Bob
