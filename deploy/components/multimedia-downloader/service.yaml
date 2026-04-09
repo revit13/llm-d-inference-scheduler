@@ -8,9 +8,10 @@ spec:
   type: ClusterIP
   ports:
   - port: 80
-    targetPort: 8080
+    targetPort: 3128
     protocol: TCP
-    name: http
+    name: http-proxy
   selector:
     app: multimedia-downloader
+    component: multimedia-downloader
 

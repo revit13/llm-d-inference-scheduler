@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: multimedia-downloader
+  labels:
+    app: multimedia-downloader
+    cache-implementation: squid-ssl-bump
+    component: multimedia-downloader
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: multimedia-downloader
+      cache-implementation: squid-ssl-bump
+      component: multimedia-downloader
+  template:
+    metadata:
+      labels:
+        app: multimedia-downloader
+        cache-implementation: squid-ssl-bump
+        component: multimedia-downloader
+    spec:
+      initContainers:
+      containers:
+      - name: squid
+        image: ghcr.io/revit13/squid:ssl-bump
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 3128
+          name: http-proxy
+          protocol: TCP
+        volumeMounts:
+        # Mount Squid configuration
+        - name: squid-config
+          mountPath: /etc/squid/squid.conf
+          subPath: squid.conf
+        # Mount SSL certificates (CA cert + private key)
+        - name: ssl-certs
+          mountPath: /etc/squid/certs
+          readOnly: true
+        # Mount cache directory
+        - name: cache
+          mountPath: /var/cache/squid
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        livenessProbe:
+          tcpSocket:
+            port: 3128
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          tcpSocket:
+            port: 3128
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      
+      volumes:
+      # Squid configuration from ConfigMap
+      - name: squid-config
+        configMap:
+          name: squid-ssl-bump-config
+      # SSL certificates secret (contains CA cert + private key)
+      - name: ssl-certs
+        secret:
+          secretName: squid-ssl-certs
+      # Cache directory (ephemeral)
+      - name: cache
+        emptyDir:
+          sizeLimit: 3Gi
+
+# Made with Bob

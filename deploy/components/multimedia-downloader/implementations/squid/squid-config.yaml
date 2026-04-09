@@ -38,11 +38,13 @@ data:
     maximum_object_size 100 GB
     minimum_object_size 0 KB
 
-    # --- Aggressive Caching for Models ---
-    # We want to ignore "no-cache" headers from Hugging Face to ensure we save bandwidth
-    refresh_pattern -i \.(bin|safetensors|gguf|pt|pth|onnx|msgpack|json|yaml|txt)$ 10080 100% 43200 override-expire ignore-no-cache ignore-no-store
-    refresh_pattern -i \.(jpg|jpeg|png|gif|webp|bmp|tiff)$ 10080 100% 43200 override-expire ignore-no-cache ignore-no-store ignore-private
-    refresh_pattern . 10080 100% 43200 override-expire ignore-no-cache ignore-no-store
+    # --- HTTP-Compliant Caching for Models ---
+    # Cache ML model files and images with long freshness times
+    # Using store-stale to cache even without explicit freshness headers
+    # Removed HTTP-violating options: override-expire, ignore-no-cache, ignore-no-store, ignore-private
+    refresh_pattern -i \.(bin|safetensors|gguf|pt|pth|onnx|msgpack|json|yaml|txt)$ 10080 100% 43200 store-stale
+    refresh_pattern -i \.(jpg|jpeg|png|gif|webp|bmp|tiff)$ 10080 100% 43200 store-stale
+    refresh_pattern . 0 20% 4320 store-stale
 
     # --- Access Control ---
     # Define ACLs correctly for Squid 6+
