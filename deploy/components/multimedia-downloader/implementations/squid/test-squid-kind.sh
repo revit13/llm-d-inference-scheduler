@@ -69,20 +69,26 @@ done
 
 # --- Cleanup -------------------------------------------------------------------
 cleanup() {
+    # Disable set -e inside the trap so a failing command does not abort cleanup
+    # early or corrupt the script's exit code.
+    set +e
     section "Cleaning up"
     if [[ -n "${KUBECONFIG_TMP}" ]]; then
         export KUBECONFIG="${KUBECONFIG_TMP}"
     fi
-    kubectl delete pod squid-test-client --ignore-not-found=true --wait=false 2>/dev/null || true
     if [[ "${KEEP_CLUSTER}" == "false" ]]; then
-        kind delete cluster --name "${CLUSTER_NAME}" 2>/dev/null || true
+        kubectl delete pod squid-test-client --ignore-not-found=true --wait=false 2>/dev/null
+        kind delete cluster --name "${CLUSTER_NAME}" 2>/dev/null
         echo "  Cluster '${CLUSTER_NAME}' deleted."
+        if [[ -n "${KUBECONFIG_TMP}" ]]; then
+            rm -f "${KUBECONFIG_TMP}"
+        fi
     else
-        echo "  Cluster kept. To inspect:"
+        echo "  Cluster kept. Resources left in place for inspection."
         echo "    export KUBECONFIG=${KUBECONFIG_TMP}"
+        echo "    kubectl get pods"
         echo "  To delete: kind delete cluster --name ${CLUSTER_NAME}"
     fi
-    [[ "${KEEP_CLUSTER}" == "false" && -n "${KUBECONFIG_TMP}" ]] && rm -f "${KUBECONFIG_TMP}"
 }
 trap cleanup EXIT
 
