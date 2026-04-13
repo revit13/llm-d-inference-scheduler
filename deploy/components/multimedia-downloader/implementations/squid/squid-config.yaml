@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: squid-multimedia-downloader-config
+data:
+  squid.conf: |
+    # Listen on 8080 as requested
+    http_port 8080
+
+    # --- PID File Configuration (for OpenShift SCC compliance) ---
+    pid_filename /var/cache/squid/squid.pid
+    netdb_filename none
+
+    # --- Timeout Configuration (CRITICAL for large files) ---
+    connect_timeout 30 seconds
+    read_timeout 300 seconds
+    request_timeout 300 seconds
+    persistent_request_timeout 300 seconds
+    client_lifetime 1 hour
+    peer_connect_timeout 30 seconds
+    forward_timeout 300 seconds
+
+    # --- Storage Configuration ---
+    # Use memory-only cache for containerized environment (no disk cache)
+    # This avoids permission issues with OpenShift SCC
+    cache_dir null /tmp
+
+    # RAM cache settings - increased for memory-only caching
+    cache_mem 2048 MB
+    maximum_object_size_in_memory 1024 MB
+
+    # Reduce in-memory index overhead
+    fqdncache_size 100
+    ipcache_size 100
+    memory_pools off
+
+    # --- HTTP-Compliant Caching for Models ---
+    # Cache ML model files and images with long freshness times
+    # Using store-stale to cache even without explicit freshness headers
+    # Removed HTTP-violating options: override-expire, ignore-no-cache, ignore-no-store, ignore-private
+    refresh_pattern -i \.(bin|safetensors|gguf|pt|pth|onnx|msgpack|json|yaml|txt)$ 10080 100% 43200 store-stale
+    refresh_pattern -i \.(jpg|jpeg|png|gif|webp|bmp|tiff)$ 10080 100% 43200 store-stale
+    refresh_pattern . 0 20% 4320 store-stale
+
+    # --- Access Control ---
+    # Define ACLs correctly for Squid 6+
+    acl CONNECT method CONNECT
+
+    # Allow local connections
+    http_access allow localhost
+    # Allow HTTPS CONNECT tunneling and all traffic
+    http_access allow CONNECT
+    http_access allow all
+
+    # --- Logging ---
+    # Setting these to /dev/null makes debugging impossible.
+    # For K8s, it's better to log to stdout/stderr.
+    # Include cache status (TCP_HIT, TCP_MISS, etc.) in access logs
+    logformat cache_status %>a %[ui %[un [%tl] "%rm %ru HTTP/%rv" %>Hs %<st "%{Referer}>h" "%{User-Agent}>h" %Ss:%Sh
+    access_log stdio:/dev/stdout cache_status
+    cache_log stdio:/dev/stderr
+
+    # --- Performance ---
+    # Prevents multiple vLLM pods from downloading the same file simultaneously
+    collapsed_forwarding on
+
+    # External DNS to ensure we can resolve huggingface.co
+    dns_nameservers 8.8.8.8 8.8.4.4
