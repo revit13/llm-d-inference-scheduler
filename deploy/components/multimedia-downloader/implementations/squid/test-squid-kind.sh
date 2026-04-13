@@ -20,7 +20,7 @@
 #     4.  Applied ConfigMap contains expected squid.conf directives
 #     5.  Deployed image matches source deployment.yaml
 #     6.  Service endpoint is populated (pod selected)
-#     7.  HTTP request via proxy reaches in-cluster origin (HTTP 200)
+#     7.  HTTP request via proxy reaches external origin (HTTP 200)
 #     8.  First request to a URL produces TCP_MISS
 #     9.  Second request to same URL produces TCP_HIT / TCP_MEM_HIT
 #     10. HTTPS CONNECT tunnel is established (TCP_TUNNEL in logs)
@@ -74,8 +74,6 @@ cleanup() {
         export KUBECONFIG="${KUBECONFIG_TMP}"
     fi
     kubectl delete pod squid-test-client --ignore-not-found=true --wait=false 2>/dev/null || true
-    kubectl delete pod origin            --ignore-not-found=true --wait=false 2>/dev/null || true
-    kubectl delete svc  origin           --ignore-not-found=true            2>/dev/null || true
     if [[ "${KEEP_CLUSTER}" == "false" ]]; then
         kind delete cluster --name "${CLUSTER_NAME}" 2>/dev/null || true
         echo "  Cluster '${CLUSTER_NAME}' deleted."
@@ -104,8 +102,8 @@ section "Test 2: deployment.yaml — image, port, and resource limits"
 DEPLOYMENT="${SCRIPT_DIR}/deployment.yaml"
 assert_contains "${DEPLOYMENT}" "image: ubuntu/squid" \
     "deployment uses ubuntu/squid image"
-assert_contains "${DEPLOYMENT}" "24\.04" \
-    "image is based on Ubuntu 24.04 LTS (not an EOL release)"
+assert_contains "${DEPLOYMENT}" "ubuntu/squid:6\.1-23\.10_beta" \
+    "image is ubuntu/squid:6.1-23.10_beta"
 assert_contains "${DEPLOYMENT}" "name: http-proxy" \
     "container port is named http-proxy (required by base service targetPort)"
 assert_contains "${DEPLOYMENT}" "containerPort: 8080" \
@@ -168,12 +166,6 @@ fi
 KUBECONFIG_TMP="$(mktemp --suffix=.yaml)"
 kind export kubeconfig --name "${CLUSTER_NAME}" --kubeconfig "${KUBECONFIG_TMP}"
 export KUBECONFIG="${KUBECONFIG_TMP}"
-
-section "Deploying in-cluster HTTP origin (nginx:alpine)"
-kubectl run origin --image=nginx:alpine --port=80 --restart=Never
-kubectl expose pod origin --port=80
-kubectl wait pod/origin --for=condition=Ready --timeout=60s
-echo "  Origin nginx ready at http://origin:80"
 
 section "Deploying squid implementation from ${SCRIPT_DIR}"
 # Apply the squid-specific resources (Deployment + ConfigMap) from the source dir.
@@ -261,10 +253,10 @@ else
 fi
 
 # --- Test 7: Basic HTTP forward proxy -----------------------------------------
-section "Test 7: HTTP request via proxy reaches origin (HTTP 200)"
-HTTP_CODE=$(proxy_curl "http://origin:80/")
+section "Test 7: HTTP request via proxy reaches external origin (HTTP 200)"
+HTTP_CODE=$(proxy_curl "http://example.com/")
 if [[ "${HTTP_CODE}" == "200" ]]; then
-    pass "HTTP 200 received from origin via proxy"
+    pass "HTTP 200 received from example.com via proxy"
 else
     fail "Expected HTTP 200, got ${HTTP_CODE}"
     dump_squid_logs
@@ -273,7 +265,7 @@ fi
 # --- Tests 8 & 9: Cache miss then cache hit -----------------------------------
 # Use a unique query string so this run does not collide with cached state.
 RUN_ID="$(date +%s)"
-CACHE_URL="http://origin:80/index.html?run=${RUN_ID}"
+CACHE_URL="http://example.com/?run=${RUN_ID}"
 
 section "Test 8: First request to a URL produces TCP_MISS"
 proxy_curl "${CACHE_URL}" >/dev/null || true
@@ -312,7 +304,7 @@ fi
 
 # --- Test 11: Collapsed forwarding --------------------------------------------
 section "Test 11: Concurrent requests to the same URL produce a single TCP_MISS"
-COLLAPSE_URL="http://origin:80/index.html?collapse=${RUN_ID}"
+COLLAPSE_URL="http://example.com/?collapse=${RUN_ID}"
 for _ in 1 2 3; do
     kubectl exec squid-test-client -- \
         curl --silent --output /dev/null "${COLLAPSE_URL}" &

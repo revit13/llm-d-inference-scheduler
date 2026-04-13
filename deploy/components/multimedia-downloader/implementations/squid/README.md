@@ -108,7 +108,7 @@ spec:
       initContainers:
       # Initialize SSL certificate database
       - name: init-ssl-db
-        image: ubuntu/squid:6.6-24.04_beta
+        image: ubuntu/squid:6.1-23.10_beta
         command:
         - /bin/sh
         - -c

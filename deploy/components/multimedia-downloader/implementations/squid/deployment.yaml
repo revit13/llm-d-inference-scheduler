@@ -22,7 +22,7 @@ spec:
     spec:
       containers:
       - name: squid
-        image: ubuntu/squid:6.6-24.04_beta
+        image: ubuntu/squid:6.1-23.10_beta
         imagePullPolicy: IfNotPresent
         command: ["squid"]
         args: ["-NYCd1"]
