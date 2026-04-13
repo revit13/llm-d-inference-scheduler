@@ -21,52 +21,58 @@ spec:
         component: multimedia-downloader
     spec:
       containers:
+      # --- Container 1: Squid Proxy ---
       - name: squid
         image: ubuntu/squid:6.1-23.10_beta
         imagePullPolicy: IfNotPresent
-        command: ["squid"]
-        args: ["-NYCd1"]
+        command: ["/bin/sh", "-c"]
+        args: 
+        - |
+          # Ensure the log file exists and the proxy user owns the whole volume
+          touch /var/cache/squid/access.log
+          chown -R proxy:proxy /var/cache/squid
+          # Start Squid with -N (No daemon) and -d1 (Log to stderr)
+          exec squid -NYCd1
         ports:
         - name: http-proxy
           containerPort: 8080
           protocol: TCP
+        resources:
+          limits:
+            cpu: "2"
+            memory: 4Gi
+          requests:
+            cpu: 250m
+            memory: 512Mi
         volumeMounts:
         - name: squid-config
           mountPath: /etc/squid/squid.conf
           subPath: squid.conf
         - name: cache-volume
           mountPath: /var/cache/squid
-        resources:
-          requests:
-            memory: "512Mi"
-            cpu: "250m"
-          limits:
-            memory: "4Gi"
-            cpu: "2"
         livenessProbe:
           exec:
-            command:
-            - /bin/sh
-            - -c
-            - test -f /var/cache/squid/squid.pid && kill -0 $(cat /var/cache/squid/squid.pid)
+            command: ["/bin/sh", "-c", "test -f /var/cache/squid/squid.pid && kill -0 $(cat /var/cache/squid/squid.pid)"]
           initialDelaySeconds: 15
           periodSeconds: 10
-          timeoutSeconds: 5
-          failureThreshold: 3
         readinessProbe:
           exec:
-            command:
-            - /bin/sh
-            - -c
-            - test -f /var/cache/squid/squid.pid && kill -0 $(cat /var/cache/squid/squid.pid)
+            command: ["/bin/sh", "-c", "test -f /var/cache/squid/squid.pid && kill -0 $(cat /var/cache/squid/squid.pid)"]
           initialDelaySeconds: 10
           periodSeconds: 5
-          timeoutSeconds: 3
-          failureThreshold: 3
+
+      # --- Container 2: Log-Tailer Sidecar ---
+      - name: log-tailer
+        image: busybox
+        command: ["/bin/sh", "-c", "tail -F /var/cache/squid/access.log"]
+        volumeMounts:
+        - name: cache-volume
+          mountPath: /var/cache/squid
+
       volumes:
       - name: squid-config
         configMap:
           name: squid-multimedia-downloader-config
       - name: cache-volume
         emptyDir:
-          sizeLimit: 64Mi
+          sizeLimit: 3Gi
