@@ -57,6 +57,7 @@ spec:
       # This container bridges the gap between the proxy-owned file and the root-owned console
       - name: log-tailer
         image: busybox
+        imagePullPolicy: IfNotPresent
         command: ["/bin/sh", "-c", "tail -F /var/cache/squid/access.log"]
         volumeMounts:
         - name: cache-volume

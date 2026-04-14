@@ -27,11 +27,16 @@ export HTTPS_PROXY=http://multimedia-downloader:80
 export NO_PROXY=localhost,127.0.0.1,.svc,.cluster.local
 ```
 
+- `HTTP_PROXY` — Routes unencrypted web traffic
+- `HTTPS_PROXY` — Routes secure, encrypted web traffic
+- `NO_PROXY` — Bypasses the proxy for specific internal hosts or domains
+
 For Python applications:
 ```python
 import os
 os.environ['HTTP_PROXY'] = 'http://multimedia-downloader:80'
 os.environ['HTTPS_PROXY'] = 'http://multimedia-downloader:80'
+os.environ['NO_PROXY'] = 'localhost,127.0.0.1,.svc,.cluster.local'
 ```
 
 ## Configuration

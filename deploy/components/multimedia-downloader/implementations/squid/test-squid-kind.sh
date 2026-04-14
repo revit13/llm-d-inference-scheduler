@@ -14,14 +14,13 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLUSTER_NAME="squid-smoke"
 KEEP_CLUSTER=false
-log() { echo -e "${YELLOW}==> $*${NC}"; }
 
 # The base service.yaml is two levels up from the squid implementation.
 BASE_DIR="${SCRIPT_DIR}/../.."
 SERVICE_YAML="${BASE_DIR}/service.yaml"
 
 # --- Colors / helpers ----------------------------------------------------------
-GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
+YELLOW='\033[1;33m'; NC='\033[0m'
 section() { echo -e "\n${YELLOW}==> $*${NC}"; }
 
 # --- Argument parsing ----------------------------------------------------------
@@ -40,6 +39,7 @@ done
 cleanup() {
     set +e
     section "Cleaning up"
+    kubectl delete pod curl-test-pod --ignore-not-found --wait=false 2>/dev/null
     if [[ "${KEEP_CLUSTER}" == "false" ]]; then
         kind delete cluster --name "${CLUSTER_NAME}" 2>/dev/null
         echo "  Cluster '${CLUSTER_NAME}' deleted."
@@ -50,6 +50,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# --- Setup kind cluster --------------------------------------------------------
 section "Setting up kind cluster '${CLUSTER_NAME}'"
 if kind get clusters 2>/dev/null | grep -qx "${CLUSTER_NAME}"; then
     echo "  Reusing existing cluster."
@@ -74,27 +75,20 @@ echo "  multimedia-downloader is ready."
 TEST_URL="http://images.cocodataset.org/val2017/000000039769.jpg"
 PROXY="http://multimedia-downloader:80"
 
-# Clear the access log before testing
-kubectl exec -it deployment/multimedia-downloader -c squid -- truncate -s 0 /var/cache/squid/access.log
-
-log "Creating long-lived test pod for curl commands"
-kubectl run curl-test-pod --image=curlimages/curl --restart=Never -- sleep 3600
+section "Creating test pod for curl commands"
+kubectl run curl-test-pod --image=curlimages/curl --restart=Never -- sleep 30
 
 # Wait for pod to be ready
 kubectl wait --for=condition=Ready pod/curl-test-pod --timeout=60s
 echo "  Test pod ready."
 
-log "Testing Cache (2 requests to verify TCP_MISS then TCP_HIT)"
+section "Testing Cache (2 requests to verify TCP_MISS then TCP_HIT)"
 for i in {1..2}; do
     echo "Request $i to $TEST_URL via $PROXY..."
     kubectl exec curl-test-pod -- curl -s -x "$PROXY" "$TEST_URL" -o /dev/null
-    sleep 1  # Small delay between requests for clearer log separation
 done
 
-log "Results (Checking TCP_MISS/TCP_HIT)"
+section "Results (Checking TCP_MISS/TCP_HIT)"
 kubectl logs -l app=multimedia-downloader -c log-tailer --tail=20 | grep -E "TCP_.*_HIT|TCP_MISS" || echo "No logs found."
-
-log "Cleaning up test pod"
-kubectl delete pod curl-test-pod --wait=false
 
 exit 0

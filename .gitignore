@@ -42,3 +42,6 @@ vendor
 
 # Coverage reports (HTML; .out files are already covered by *.out above)
 /coverage
+
+# Generated SSL certificates for Squid SSL Bump testing
+deploy/components/multimedia-downloader/implementations/squid/ssl-bump/squid-ssl-certs/

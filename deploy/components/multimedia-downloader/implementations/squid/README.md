@@ -1,25 +1,22 @@
-# Squid Proxy Implementation
+# Squid Proxy: Multimedia Cache
 
-This implementation utilizes a Squid proxy to cache multimedia content like images, optimizing for efficient data retrieval rather than manipulation or resizing.
+This Squid proxy implementation caches multimedia content (like images and videos) to optimize data retrieval speeds.
 
-> **Note:** You must tailor the provided baseline configuration to your specific environment. This includes modifying cache sizes, Access Control Lists (ACLs), and SSL parameters. Please review the Squid Configuration Reference for all available settings.
+> **Note:** Remember to tailor cache sizes, ACLs, and SSL parameters to your specific environment before production use.
 
-## Deployment
+## 🚀 Quick Start: Deploy & Test
 
-You can deploy the proxy using Kustomize from the implementation directory:
-```bash
-kubectl apply -k deploy/components/multimedia-downloader/implementations/squid
-```
+### 1. Deploy the Proxy
 
-Or from the base directory:
+Deploy using Kustomize from the base directory:
 
 ```bash
 kubectl apply -k deploy/components/multimedia-downloader
 ```
 
-## Testing
+### 2. Run Automated Tests
 
-Use the provided [test script](test-squid-kind.sh) to validate the Squid proxy deployment and caching functionality:
+Use the provided [bash script](test-squid-kind.sh) to spin up a temporary Kind cluster, run cache tests, and verify logs:
 
 ```bash
 # Run automated test (creates temporary cluster, tests, and cleans up)
@@ -29,33 +26,36 @@ Use the provided [test script](test-squid-kind.sh) to validate the Squid proxy d
 ./deploy/components/multimedia-downloader/implementations/squid/test-squid-kind.sh --keep-cluster
 ```
 
-The script will:
-1. Create a kind cluster named `squid-smoke`
-2. Deploy the Squid proxy with the multimedia-downloader service
-3. Make two requests to the same image URL
-4. Verify the first request is a cache MISS and the second is a cache HIT
-5. Display the Squid access logs showing cache statuses
+### Understanding Log Results
 
-### Understanding Cache Log Statuses
+- TCP_HIT: Served fast from disk cache.
 
-Key log statuses to look for:
+- TCP_MEM_HIT: Served ultra-fast from memory cache.
 
-- `TCP_HIT`: The content was successfully served directly from the proxy cache (disk cache).
-
-- `TCP_MISS`: The content was not in the cache and had to be fetched from the origin server.
-
-- `TCP_MEM_HIT`: The content was served extremely quickly from the memory cache (fastest).
+- TCP_MISS: Downloaded from the origin server (not in cache).
 
 For more detailed explanations of log statuses and monitoring cache hit rates, see the [Squid monitoring guide](https://oneuptime.com/blog/post/2026-03-20-squid-monitor-cache-hit-rates-ipv4/view).
 
-## SSL Bump Implementation Guide
+## 🔒 HTTPS Caching
 
+By default, proxies cannot see inside encrypted HTTPS traffic. Here is how Squid manages encrypted flows depending on your configuration:
+
+* **Blind Tunneling (CONNECT):** Passes encrypted TCP traffic through an opaque tunnel. 
+    * *Trade-off:* Zero visibility; no caching or granular filtering is possible.
+* **Full Decryption (SslBump MITM):** Intercepts, decrypts, and re-encrypts traffic using a custom Root CA. 
+    * *Trade-off:* Enables full inspection and caching, but requires complex certificate management and raises privacy/legal risks.
+* **Smart Inspection (Peek & Splice):** Inspects the unencrypted SNI (Server Name Indication) during the TLS handshake. 
+    * *Trade-off:* Allows domain-based filtering without requiring full decryption.
+
+**Modern Constraints: TLS 1.3 & ECH**
+While Squid supports TLS 1.3, new privacy standards like ECH (Encrypted Client Hello) and ESNI encrypt the destination domain itself. Since the proxy cannot see the target to apply policy, these connections must be spliced (passed through blindly) to prevent connection failure.
+
+
+### SSL Bump
 [SSL Bump](https://wiki.squid-cache.org/Features/SslBump) empowers Squid to act as a man-in-the-middle (MITM) proxy, allowing it to intercept and cache encrypted HTTPS traffic. Because this process inherently breaks end-to-end encryption trust, it introduces significant privacy and legal risks. It is highly recommended to utilize smart inspection techniques like [Peek & Splice](https://wiki.squid-cache.org/Features/SslPeekAndSplice) where appropriate.
 
-> **Warning:**  SSL Bump breaks end-to-end trust. Always ensure you have legal and compliance approval before intercepting HTTPS traffic.
+> **Warning:**  SSL Bump breaks end-to-end tsrust. Always ensure you have legal and compliance approval before intercepting HTTPS traffic.
 
-
-## Overview
 
 **What is SSL Bump?**
 

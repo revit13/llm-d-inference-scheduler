@@ -23,7 +23,6 @@ data:
     maximum_object_size 500 MB
 
     # --- Aggressive Caching for Images ---
-    
     # Keeps images with no headers for 7 days
     refresh_pattern -i \.(jpg|jpeg|png|gif|webp|bmp|tiff)$ 10080 100% 43200
 

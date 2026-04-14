@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: squid-ssl-bump-config
+  labels:
+    app: multimedia-downloader
+    cache-implementation: squid-ssl-bump
+    component: multimedia-downloader
+data:
+  squid.conf: |
+    # Listen on 3128 with SSL Bump enabled (squid-openssl)
+    http_port 3128 ssl-bump \
+      cert=/etc/squid/certs/squid-ca-cert.pem \
+      key=/etc/squid/certs/squid-ca-key.pem \
+      generate-host-certificates=on \
+      dynamic_cert_mem_cache_size=16MB
+
+    # --- SSL Certificate Generation ---
+    sslcrtd_program /usr/lib/squid/security_file_certgen -s /var/lib/squid/ssl_db -M 16MB
+    sslcrtd_children 10 startup=5 idle=1
+
+    # --- SSL Bump ACLs and Rules ---
+    # Define SSL bump steps
+    acl step1 at_step SslBump1
+    acl step2 at_step SslBump2
+    acl step3 at_step SslBump3
+
+    # Optional: Define sites to NOT decrypt (splice instead of bump)
+    # Uncomment and customize if needed for sensitive sites
+    # acl no_bump_sites ssl::server_name .bank.com .healthcare.gov
+    # acl no_bump_sites ssl::server_name .your-sensitive-site.com
+
+    # SSL Bump decision logic
+    ssl_bump peek step1              # Peek at client hello to get SNI
+    # ssl_bump splice no_bump_sites  # Uncomment to bypass sensitive sites
+    ssl_bump stare step2             # Stare at server certificate
+    ssl_bump bump all                # Bump (decrypt) everything else
+
+    # --- PID/Files for Non-Root/SCC Compliance ---
+    pid_filename /var/cache/squid/squid.pid
+    netdb_filename none
+
+    # --- Storage & Caching ---
+    cache_mem 1024 MB
+    maximum_object_size 500 MB
+
+    # --- Aggressive Caching for Images ---
+    # Keeps images with no headers for 7 days
+    refresh_pattern -i \.(jpg|jpeg|png|gif|webp|bmp|tiff)$ 10080 100% 43200
+
+    # --- Access Control ---
+    http_access allow all
+
+    # --- Performance & DNS ---
+    collapsed_forwarding on
+    dns_nameservers 8.8.8.8 8.8.4.4
+
+    # --- Logging ---
+    # Force Squid to flush logs to disk immediately
+    buffered_logs off
+    access_log /var/cache/squid/access.log squid
+
+    # --- Performance ---
+    collapsed_forwarding on
+
+    # --- DNS ---
+    dns_nameservers 8.8.8.8 8.8.4.4
