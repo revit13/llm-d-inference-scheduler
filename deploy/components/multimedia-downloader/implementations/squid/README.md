@@ -17,22 +17,36 @@ Or from the base directory:
 kubectl apply -k deploy/components/multimedia-downloader
 ```
 
-## Monitoring
+## Testing
 
-Check Squid logs for cache hits/misses:
+Use the provided [test script](test-squid-kind.sh) to validate the Squid proxy deployment and caching functionality:
 
 ```bash
-# View access logs
-kubectl logs -l app=multimedia-downloader
+# Run automated test (creates temporary cluster, tests, and cleans up)
+./deploy/components/multimedia-downloader/implementations/squid/test-squid-kind.sh
+
+# Keep the cluster for debugging and manual testing
+./deploy/components/multimedia-downloader/implementations/squid/test-squid-kind.sh --keep-cluster
 ```
+
+The script will:
+1. Create a kind cluster named `squid-smoke`
+2. Deploy the Squid proxy with the multimedia-downloader service
+3. Make two requests to the same image URL
+4. Verify the first request is a cache MISS and the second is a cache HIT
+5. Display the Squid access logs showing cache statuses
+
+### Understanding Cache Log Statuses
 
 Key log statuses to look for:
 
-- `TCP_HIT`: The content was successfully served directly from the proxy cache.
+- `TCP_HIT`: The content was successfully served directly from the proxy cache (disk cache).
 
 - `TCP_MISS`: The content was not in the cache and had to be fetched from the origin server.
 
-- `TCP_MEM_HIT`: The content was served extremely quickly from the memory cache.
+- `TCP_MEM_HIT`: The content was served extremely quickly from the memory cache (fastest).
+
+For more detailed explanations of log statuses and monitoring cache hit rates, see the [Squid monitoring guide](https://oneuptime.com/blog/post/2026-03-20-squid-monitor-cache-hit-rates-ipv4/view).
 
 ## SSL Bump Implementation Guide
 

@@ -4,26 +4,19 @@ metadata:
   name: multimedia-downloader
   labels:
     app: multimedia-downloader
-    cache-implementation: squid
-    component: multimedia-downloader
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: multimedia-downloader
-      cache-implementation: squid
-      component: multimedia-downloader
   template:
     metadata:
       labels:
         app: multimedia-downloader
-        cache-implementation: squid
-        component: multimedia-downloader
     spec:
       containers:
-      # --- Container 1: Squid Proxy ---
       - name: squid
-        image: ubuntu/squid:6.1-23.10_beta
+        image: ${SQUID_IMAGE}
         imagePullPolicy: IfNotPresent
         command: ["/bin/sh", "-c"]
         args: 
@@ -39,11 +32,11 @@ spec:
           protocol: TCP
         resources:
           limits:
-            cpu: "2"
-            memory: 4Gi
+            cpu: "1"
+            memory: 1Gi
           requests:
-            cpu: 250m
-            memory: 512Mi
+            cpu: 100m
+            memory: 256Mi
         volumeMounts:
         - name: squid-config
           mountPath: /etc/squid/squid.conf
@@ -60,8 +53,8 @@ spec:
             command: ["/bin/sh", "-c", "test -f /var/cache/squid/squid.pid && kill -0 $(cat /var/cache/squid/squid.pid)"]
           initialDelaySeconds: 10
           periodSeconds: 5
-
-      # --- Container 2: Log-Tailer Sidecar ---
+     
+      # This container bridges the gap between the proxy-owned file and the root-owned console
       - name: log-tailer
         image: busybox
         command: ["/bin/sh", "-c", "tail -F /var/cache/squid/access.log"]

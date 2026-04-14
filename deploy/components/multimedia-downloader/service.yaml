@@ -13,5 +13,4 @@ spec:
     name: http-proxy
   selector:
     app: multimedia-downloader
-    component: multimedia-downloader
 

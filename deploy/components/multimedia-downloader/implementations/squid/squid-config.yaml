@@ -7,10 +7,8 @@ metadata:
     component: multimedia-downloader
 data:
   squid.conf: |-
-    # --- Logging Fixes ---
     # Force Squid to flush logs to disk immediately
     buffered_logs off
-    # Use the native file path without the 'stdio:' prefix
     access_log /var/cache/squid/access.log squid
 
     # --- Listen Port ---
@@ -21,21 +19,15 @@ data:
     netdb_filename none
 
     # --- Storage & Caching ---
-    cache_dir null /tmp
-    cache_mem 2048 MB
-    maximum_object_size_in_memory 1024 MB
-    maximum_object_size 100 GB
-    minimum_object_size 0 KB
+    cache_mem 1024 MB
+    maximum_object_size 500 MB
 
-    # --- Aggressive Caching for AI Models & Images ---
-    refresh_pattern -i \.(bin|safetensors|gguf|pt|pth|onnx|msgpack|json|yaml|txt)$ 10080 100% 43200 override-expire ignore-no-cache ignore-no-store
-    refresh_pattern -i \.(jpg|jpeg|png|gif|webp|bmp|tiff)$ 10080 100% 43200 override-expire ignore-no-cache ignore-no-store ignore-private
-    refresh_pattern . 10080 100% 43200 override-expire ignore-no-cache ignore-no-store
+    # --- Aggressive Caching for Images ---
+    
+    # Keeps images with no headers for 7 days
+    refresh_pattern -i \.(jpg|jpeg|png|gif|webp|bmp|tiff)$ 10080 100% 43200
 
     # --- Access Control ---
-    acl CONNECT method CONNECT
-    http_access allow localhost
-    http_access allow CONNECT
     http_access allow all
 
     # --- Performance & DNS ---
