@@ -44,4 +44,4 @@ vendor
 /coverage
 
 # Generated SSL certificates for Squid SSL Bump testing
-deploy/components/multimedia-downloader/implementations/squid/ssl-bump/squid-ssl-certs/
+deploy/components/multimedia-downloader/implementations/squid/https-ssl-bump/squid-ssl-certs/

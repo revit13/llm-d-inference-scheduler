@@ -6,7 +6,11 @@ An advanced, pluggable caching proxy built to accelerate the retrieval and deliv
 
 The proxy is designed to support different caching backends, which are maintained in the `implementations/` directory. Each backend manages its own specific configuration and resource footprints.
 
-* **[Squid](https://github.com/squid-cache/squid) (Default):** A robust, high-performance HTTP/HTTPS caching proxy. For detailed setup instructions—including SSL Bump configuration—please reference the [Squid Implementation Guide](implementations/squid/README.md).
+* **[Squid](https://github.com/squid-cache/squid) (Default):** A robust, high-performance HTTP/HTTPS caching proxy with two variants:
+  * **[basic](implementations/squid/http/)** — HTTP caching proxy (port 8080).
+  * **[https-ssl-bump](implementations/squid/https-ssl-bump/)** — HTTPS MITM caching proxy (port 3128). Requires a custom CA certificate.
+
+  For setup instructions see the [Squid Implementation Guide](implementations/squid/README.md).
 
 ## Quick Start
 
@@ -49,23 +53,23 @@ The base directory contains:
 
 ### Implementation-Specific Configuration
 
-Each implementation has its own:
+Each implementation lives under `implementations/<name>/` and may contain one or more variant subdirectories (e.g., `basic/`, `https-ssl-bump/`). Each variant has its own:
 - `deployment.yaml` - Kubernetes deployment; must expose a container port named `http-proxy`
 - `kustomization.yaml` - Kustomize configuration
-- Configuration files (e.g., `squid-config.yaml` for Squid)
+- Configuration files (e.g., `squid-config.yaml`)
 
-The base service uses the named port `http-proxy` as its `targetPort`. Implementations resolve this automatically by naming their container port `http-proxy` — no service patch is required.
+The base service uses the named port `http-proxy` as its `targetPort`. Variants resolve this automatically by naming their container port `http-proxy` — no service patch is required.
 
 ## Adding New Implementations
 
 To add a new cache implementation:
 
-1. Create a new directory under `implementations/` (e.g., `implementations/nginx`)
+1. Create a variant directory under `implementations/` (e.g., `implementations/nginx/basic/`)
 
-2. Add implementation-specific files:
+2. Add variant-specific files:
    - `deployment.yaml` - Your proxy deployment; name the container port `http-proxy` (the base service resolves `targetPort: http-proxy` automatically)
-   - `kustomization.yaml` - List resources and commonLabels
+   - `kustomization.yaml` - List resources and labels
    - Configuration files (e.g., `nginx-config.yaml`)
 
 3. Update the base `kustomization.yaml`:
-   - Change the implementation reference: `- implementations/your-implementation`
+   - Change the implementation reference: `- implementations/nginx/basic`

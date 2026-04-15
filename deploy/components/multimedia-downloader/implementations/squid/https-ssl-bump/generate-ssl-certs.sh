@@ -76,4 +76,4 @@ kubectl create secret generic squid-ca-public-cert \
 
 echo ""
 echo "Done. Files written to '$OUT_DIR/'."
-echo "⚠️  Keep '$KEY' secure — anyone with this key can impersonate any website."
+echo "⚠️  Keep '$KEY' secure"

@@ -21,9 +21,8 @@ spec:
         - -c
         - |
           apk add --no-cache ca-certificates
-          cp /squid-ca/squid-ca-cert.pem /usr/local/share/ca-certificates/squid-ca.crt
-          update-ca-certificates
-          cp -r /etc/ssl/certs/* /shared-certs/
+          cp -L /etc/ssl/certs/ca-certificates.crt /shared-certs/ca-certificates.crt
+          cat /squid-ca/squid-ca-cert.pem >> /shared-certs/ca-certificates.crt
         volumeMounts:
         - name: squid-ca-cert
           mountPath: /squid-ca

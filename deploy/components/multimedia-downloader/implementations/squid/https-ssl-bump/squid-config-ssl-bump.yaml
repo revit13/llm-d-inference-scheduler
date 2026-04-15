@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: squid-ssl-bump-config
+  name: squid-multimedia-downloader-config
   labels:
     app: multimedia-downloader
     cache-implementation: squid-ssl-bump
@@ -59,9 +59,3 @@ data:
     # Force Squid to flush logs to disk immediately
     buffered_logs off
     access_log /var/cache/squid/access.log squid
-
-    # --- Performance ---
-    collapsed_forwarding on
-
-    # --- DNS ---
-    dns_nameservers 8.8.8.8 8.8.4.4

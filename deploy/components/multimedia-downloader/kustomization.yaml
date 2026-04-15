@@ -6,7 +6,7 @@ resources:
 # resolves automatically via targetPort: http-proxy (no service patch needed).
 - service.yaml
 # Cache implementation
-- implementations/squid
+- implementations/squid/http
 
 
 commonLabels:

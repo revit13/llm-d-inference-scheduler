@@ -2,7 +2,7 @@
 # test-squid-kind.sh — deploys the Squid implementation to a temporary kind cluster.
 #
 # Usage:
-#   ./deploy/components/multimedia-downloader/implementations/squid/test-squid-kind.sh [--keep-cluster]
+#   ./deploy/components/multimedia-downloader/implementations/squid/http/test-squid-kind.sh [--keep-cluster]
 #
 # Flags:
 #   --keep-cluster   Keep the kind cluster on exit (useful for debugging).
@@ -15,8 +15,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLUSTER_NAME="squid-smoke"
 KEEP_CLUSTER=false
 
-# The base service.yaml is two levels up from the squid implementation.
-BASE_DIR="${SCRIPT_DIR}/../.."
+# The base service.yaml is three levels up from the squid/http/ subdirectory.
+BASE_DIR="${SCRIPT_DIR}/../../.."
 SERVICE_YAML="${BASE_DIR}/service.yaml"
 
 # --- Colors / helpers ----------------------------------------------------------
@@ -59,14 +59,9 @@ else
     echo "  Cluster created."
 fi
 section "Deploying squid implementation from ${SCRIPT_DIR}"
-# Set SQUID_IMAGE environment variable with default value
 export SQUID_IMAGE="${SQUID_IMAGE:-ubuntu/squid:6.1-23.10_beta}"
 echo "  Using image: ${SQUID_IMAGE}"
-# Apply the squid-specific resources (Deployment + ConfigMap) from the source dir.
-# Use envsubst to replace ${SQUID_IMAGE} in the deployment
 kubectl kustomize "${SCRIPT_DIR}" | envsubst | kubectl apply -f -
-# Apply the base Service separately; it is not part of the squid kustomization
-# but is required for DNS-based proxy access inside the cluster.
 kubectl apply -f "${SERVICE_YAML}"
 kubectl rollout status deployment/multimedia-downloader --timeout=120s
 echo "  multimedia-downloader is ready."
@@ -86,6 +81,7 @@ section "Testing Cache (2 requests to verify TCP_MISS then TCP_HIT)"
 for i in {1..2}; do
     echo "Request $i to $TEST_URL via $PROXY..."
     kubectl exec curl-test-pod -- curl -s -x "$PROXY" "$TEST_URL" -o /dev/null
+    sleep 3
 done
 
 section "Results (Checking TCP_MISS/TCP_HIT)"

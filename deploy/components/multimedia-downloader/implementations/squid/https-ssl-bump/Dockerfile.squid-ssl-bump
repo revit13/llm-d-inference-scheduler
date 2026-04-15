@@ -1,5 +1,5 @@
-# Use Ubuntu 24.04 LTS as the base
-FROM ubuntu:24.04
+# Use Ubuntu 22.04 as the stable base
+FROM ubuntu:22.04
 
 LABEL maintainer="ai-infrastructure-team@example.com"
 LABEL description="Squid Proxy with SSL-Bump support for vLLM and ai-dynamo"
@@ -8,11 +8,12 @@ LABEL description="Squid Proxy with SSL-Bump support for vLLM and ai-dynamo"
 ENV DEBIAN_FRONTEND=noninteractive
 
 # 1. Install Squid with OpenSSL support
-# Note: Ubuntu 24.04 provides the 'squid-openssl' package for this purpose
+# Note: Ubuntu 22.04 provides the 'squid-openssl' package for this purpose
 RUN apt-get update && apt-get install -y \
     squid-openssl \
     openssl \
     ca-certificates \
+    curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -22,15 +23,23 @@ RUN mkdir -p /var/lib/squid \
     && /usr/lib/squid/security_file_certgen -c -s /var/lib/squid/ssl_db -M 4MB \
     && chown -R proxy:proxy /var/lib/squid/ssl_db
 
-# 3. Prepare for CA Certificate from K8s Secret
+# 3. Create necessary log and run directories
+RUN mkdir -p /var/log/squid /var/run/squid \
+    && chown -R proxy:proxy /var/log/squid /var/run/squid
+
+# 4. Prepare for CA Certificate from K8s Secret
 # We create the directory where the secret will be mounted
 RUN mkdir -p /etc/squid/certs && chown proxy:proxy /etc/squid/certs
 
-# 4. Add entrypoint script to handle SSL DB initialization
+# 5. Add a robust entrypoint script to handle initialization
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-EXPOSE 8080
+# Environment variables for Squid tuning (can be overridden in K8s)
+ENV SQUID_CACHE_SIZE=10000
+ENV SQUID_MAX_OBJECT_SIZE=10240
+
+EXPOSE 3128
 
 # Transition to the proxy user for runtime security
 USER proxy
