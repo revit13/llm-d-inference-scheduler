@@ -21,17 +21,46 @@ Plugins are used to modify llm-d-inference-scheduler's default behavior. Filter 
  in some cases it may be desirable to create and deploy custom filtering code to
  match your specific requirements.
 
-The filters` main operating function is
+Filters implement the [`scheduling.Filter`](https://pkg.go.dev/sigs.k8s.io/gateway-api-inference-extension/pkg/epp/framework/interface/scheduling#Filter) interface and execute early in the scheduling pipeline:
 
 ```go
-func Filter(*types.SchedulingContext, []types.Pod) []types.Pod
+Filter(ctx context.Context, state *scheduling.CycleState, request *scheduling.LLMRequest, endpoints []scheduling.Endpoint) []scheduling.Endpoint
 ```
 
-The `Filter` function accepts a `SchedulingContext` (e.g., containing the
- incoming LLM request) and an array of `Pod` objects as potential targets. Each `Pod`
- entry includes relevant inference metrics and attributes which can be used
- to make scheduling decisions. The function returns a (possibly smaller) array
- of `Pod`s which satisfy the filtering criteria.
+Key upstream types used in the signature:
+- [`scheduling.CycleState`](https://pkg.go.dev/sigs.k8s.io/gateway-api-inference-extension/pkg/epp/framework/interface/scheduling#CycleState) — thread-safe per-request state shared across plugins
+- [`scheduling.LLMRequest`](https://pkg.go.dev/sigs.k8s.io/gateway-api-inference-extension/pkg/epp/framework/interface/scheduling#LLMRequest) — parsed request with model, body, headers, and objectives
+- [`scheduling.Endpoint`](https://pkg.go.dev/sigs.k8s.io/gateway-api-inference-extension/pkg/epp/framework/interface/scheduling#Endpoint) — candidate endpoint interface with metadata and metrics
+
+The `Filter` function accepts the request and a slice of candidate endpoints. Each endpoint exposes relevant inference metrics and attributes which can be used to make scheduling decisions. The function returns a (possibly smaller) slice of endpoints which satisfy the filtering criteria.
+
+## Filter Execution
+
+Filters execute in the order defined in configuration:
+
+```
+All Endpoints → Filter 1 → Filter 2 → Filter 3 → Filtered Endpoints
+```
+
+**Example:**
+```yaml
+filters:
+  - type: by-label
+    name: gpu-filter
+    config:
+      label: "gpu.type"
+      validValues: ["a100"]
+  
+  - type: by-label-selector
+    name: model-filter
+    config:
+      labelSelector:
+        matchLabels:
+          model: "llama-3"
+  
+  - type: decode-filter
+    name: role-filter
+```
 
 ## Code walkthrough
 
