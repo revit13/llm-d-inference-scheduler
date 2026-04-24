@@ -1,7 +1,5 @@
 # Models Data Layer Plugins
 
-> Note: This file outlines the available Data Layer plugins. See the [Architecture Overview](../../../../../../../docs/architecture.md) for details on how Data Layer plugins fit into the scheduling pipeline.
-
 ## Contents
 
 - [Available Data Layer Plugins](#available-data-layer-plugins)

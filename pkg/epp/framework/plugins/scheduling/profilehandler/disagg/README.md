@@ -1,28 +1,25 @@
-# Profile Handler, PreRequest and Deciders Plugins
-
-> Note: This file outlines the available Profile handlers, PreRequest and Deciders plugins. See the [Architecture Overview](../../../../../../docs/architecture.md) for details on how these plugins fit into the scheduling pipeline.
+# Disaggregated Profile Handler, PreRequest, and Decider Plugins
 
 ## Contents
 
-- [Available Profile Handlers](#available-profile-handlers)
+- [Profile Handlers](#profile-handlers)
   - [DisaggProfileHandler](#disaggprofilehandler)
   - [PdProfileHandler (Deprecated)](#pdprofilehandler-deprecated)
-- [Available PreRequest Plugins](#available-prerequest-plugins)
+- [PreRequest Plugins](#prerequest-plugins)
   - [DisaggHeadersHandler](#disaggheadershandler)
-- [Available Decider Plugins](#available-decider-plugins)
+  - [PrefillHeaderHandler (Deprecated)](#prefillheaderhandler-deprecated)
+- [Decider Plugins](#decider-plugins)
   - [PrefixBasedPDDecider](#prefixbasedpddecider)
   - [AlwaysDisaggPDDecider](#alwaysdisaggpddecider)
   - [AlwaysDisaggMultimodalDecider](#alwaysdisaggmultimodaldecider)
-- [DataParallel Profile Handler (Deprecated)](#dataparallel-profile-handler)
-- [Related Documentation](#related-documentation)
 
 ---
 
-## Available Profile Handlers
+## Profile Handlers
 
 ### DisaggProfileHandler
 
-**Type:** `disagg-profile-handler` | **Implementation:** [disagg/disagg_profile_handler.go](disagg/disagg_profile_handler.go)
+**Type:** `disagg-profile-handler` | **Implementation:** [disagg_profile_handler.go](disagg_profile_handler.go)
 
 Selects the scheduling profiles to use when running with disaggregation. Supports monolithic (D), two-stage (P/D), three-stage (E/P/D), and encode-prefill (E/PD) modes.
 
@@ -64,17 +61,17 @@ plugins:
 
 ### PdProfileHandler (Deprecated)
 
-**Type:** `pd-profile-handler` | **Implementation:** [disagg/pd_profile_handler.go](disagg/pd_profile_handler.go)
+**Type:** `pd-profile-handler` | **Implementation:** [pd_profile_handler.go](pd_profile_handler.go)
 
 > **Deprecated:** Use `disagg-profile-handler` instead.
 
 ---
 
-## Available PreRequest Plugins
+## PreRequest Plugins
 
 ### DisaggHeadersHandler
 
-**Type:** `disagg-headers-handler` | **Implementation:** [disagg/disagg_headers_handler.go](disagg/disagg_headers_handler.go)
+**Type:** `disagg-headers-handler` | **Implementation:** [disagg_headers_handler.go](disagg_headers_handler.go)
 
 Sets headers for use in disaggregated prefill/decode and encode/prefill/decode.
 
@@ -100,13 +97,19 @@ plugins:
       encodeProfile: "my-encode"
 ```
 
+### PrefillHeaderHandler (Deprecated)
+
+**Type:** `prefill-header-handler` | **Implementation:** [disagg_headers_handler.go](disagg_headers_handler.go)
+
+> **Deprecated:** Use `disagg-headers-handler` instead.
+
 ---
 
-## Available Decider Plugins
+## Decider Plugins
 
 ### PrefixBasedPDDecider
 
-**Type:** `prefix-based-pd-decider` | **Implementation:** [disagg/prefix_based_pd_decider.go](disagg/prefix_based_pd_decider.go)
+**Type:** `prefix-based-pd-decider` | **Implementation:** [prefix_based_pd_decider.go](prefix_based_pd_decider.go)
 
 Makes P/D disaggregation decisions based on KV cache prefix matching. Disaggregates only when the non-cached portion of the user input exceeds a threshold, avoiding disaggregation overhead for short or well-cached requests.
 
@@ -135,7 +138,7 @@ In this example:
 
 ### AlwaysDisaggPDDecider
 
-**Type:** `always-disagg-pd-decider` | **Implementation:** [disagg/always_disagg_pd_decider.go](disagg/always_disagg_pd_decider.go)
+**Type:** `always-disagg-pd-decider` | **Implementation:** [always_disagg_pd_decider.go](always_disagg_pd_decider.go)
 
 Always approves P/D disaggregation for every request. Useful for testing or forcing disaggregation unconditionally.
 
@@ -154,7 +157,7 @@ plugins:
 
 ### AlwaysDisaggMultimodalDecider
 
-**Type:** `always-disagg-multimodal-decider` | **Implementation:** [disagg/always_disagg_mm_decider.go](disagg/always_disagg_mm_decider.go)
+**Type:** `always-disagg-multimodal-decider` | **Implementation:** [always_disagg_mm_decider.go](always_disagg_mm_decider.go)
 
 Approves encode disaggregation for requests that contain multimodal content (images, audio). Text-only requests are not disaggregated.
 
@@ -177,54 +180,10 @@ In this example:
 
 ---
 
-## DataParallel Profile Handler
-
-> **Deprecated:** Use `simple-profile-handler` with Istio >= 1.28.1 instead.
-
-The `dataparallel` package provides a profile handler for data-parallel inference routing, where a request is scheduled to one pod among multiple replicas serving the same model.
-
-### DataParallelProfileHandler
-
-**Type:** `data-parallel-profile-handler` | **Implementation:** [dataparallel/dp_profile_handler.go](dataparallel/dp_profile_handler.go)
-
-Injects the `X-Data-Parallel-Endpoint` header pointing to the selected pod, and rewrites the target port to `primaryPort`.
-
-**Constraints:**
-- Requires exactly one scheduling profile in the config.
-
-**Parameters:**
-- `primaryPort` (int, optional, default: `8000`): Primary service port (1–65535).
-
-**Configuration Example:**
-```yaml
-plugins:
-  - type: data-parallel-profile-handler
-    name: dp-handler
-    parameters:
-      primaryPort: 8000
-```
-
-**Migration:** Replace with `simple-profile-handler` (requires Istio >= 1.28.1):
-
-**Before:**
-```yaml
-plugins:
-  - type: data-parallel-profile-handler
-    parameters:
-      primaryPort: 8000
-```
-
-**After:**
-```yaml
-plugins:
-  - type: simple-profile-handler
-```
-
----
-
 ## Related Documentation
 
-- [Disaggregation Architecture](../../../../../../docs/disaggregation.md)
-- [Architecture Overview](../../../../../../docs/architecture.md)
-- [Filter Plugins](../filter/bylabel/README.md)
-- [Scorer Plugins](../scorer/README.md)
+- [Disaggregation Architecture](../../../../../../../docs/disaggregation.md)
+- [Architecture Overview](../../../../../../../docs/architecture.md)
+- [SingleProfileHandler](../single/)
+- [Filter Plugins](../../filter/bylabel/README.md)
+- [Scorer Plugins](../../scorer/README.md)

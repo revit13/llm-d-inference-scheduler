@@ -1,7 +1,5 @@
 # Tokenizer Plugin
 
-> Note: This file outlines the available Tokenizer plugin. See the [Architecture Overview](../../../../../../../docs/architecture.md) for details on how Tokenizer plugin fit into the scheduling pipeline.
-
 ## Contents
 
 - [Tokenizer](#tokenizer)
@@ -13,7 +11,7 @@
 
 **Type:** `tokenizer` | **Interfaces:** [`scheduling.Scorer`](https://github.com/kubernetes-sigs/gateway-api-inference-extension/blob/main/pkg/epp/framework/interface/scheduling/plugins.go) (default) · [`requestcontrol.PrepareDataPlugin`](https://github.com/kubernetes-sigs/gateway-api-inference-extension/blob/main/pkg/epp/framework/interface/requestcontrol/plugins.go) (build-tag)
 
-Connects to a tokenizer service (provided by [`github.com/llm-d/llm-d-kv-cache/pkg/tokenization`](https://github.com/llm-d/llm-d-kv-cache)) over a Unix Domain Socket (UDS) and produces a [`TokenizedPromptState`](tokenizer.go) containing token IDs and optional multi-modal features.
+Converts incoming LLM prompts (both standard text completions and multi-modal chat messages) into token IDs for downstream filters and scorers. Communicates via Unix Domain Socket (UDS) with a tokenizer service from [`github.com/llm-d/llm-d-kv-cache/pkg/tokenization`](https://github.com/llm-d/llm-d-kv-cache), which runs as a separate sidecar container alongside the EPP pod. An embedded (in-process) alternative is also available in the same package. Fail-open: tokenization errors are logged and scheduling continues without token data.
 
 
 **Parameters:**

@@ -30,7 +30,7 @@
 
 The design enables:
 
-- Support for **multiple base models** within a shared cluster (see [serving multiple inference pools](https://gateway-api-inference-extension.sigs.k8s.io/guides/serving-multiple-inference-pools-latest/))
+- Support for **multiple base models** within a shared cluster (see [serving multiple inference pools](#inferencepool--inferencemodel-design))
 - Efficient routing based on **KV cache locality**, **session affinity**, **load**, and
 **model metadata**
 - Disaggregated **Prefill/Decode (P/D)** execution
@@ -61,13 +61,12 @@ The inference scheduler is built on top of:
 - An [EPP] (Endpoint Picker), making scheduling decisions, as the control plane.
   The llm-d inference scheduler extends the EPP in [GIE] with state of the art
   scheduling algorithms.
-- An optional [BBR] (Body Based Routing) component, to associate requests with
+- An optional BBR (Body Based Routing) component, to associate requests with
   their corresponding model before the EPP is consulted.
 
 [Envoy]:https://www.envoyproxy.io/
-[EPP]:https://gateway-api-inference-extension.sigs.k8s.io/#endpoint-picker
-[BBR]:https://gateway-api-inference-extension.sigs.k8s.io/#concepts-and-definitions
-[GIE]:https://github.com/kubernetes-sigs/gateway-api-inference-extension
+[EPP]:../cmd/epp/
+[GIE]:../README.md#relation-to-gie-igw
 
 ---
 
@@ -226,34 +225,53 @@ If the configuration is in a file, the EPP command line argument `--configFile` 
 
 ### Available plugins
 
-- **Data Layer** ([`datalayer.Extractor`](https://github.com/kubernetes-sigs/gateway-api-inference-extension/blob/main/pkg/epp/framework/interface/datalayer/plugin.go))
-  - **Function**: Polls each pod in the background to collect metadata (e.g. model info) and makes it available to filters and scorers via endpoint attributes before any request is processed.
-  - **Default:** `metrics-data-source` + `core-metrics-extractor` (auto-injected)
-  - **Reference**: [datalayer/extractor/models/README.md](../pkg/epp/framework/plugins/datalayer/extractor/models/README.md)
-- **Tokenizer** ([`scheduling.Scorer`](https://github.com/kubernetes-sigs/gateway-api-inference-extension/blob/main/pkg/epp/framework/interface/scheduling/plugins.go) / [`requestcontrol.PrepareDataPlugin`](https://github.com/kubernetes-sigs/gateway-api-inference-extension/blob/main/pkg/epp/framework/interface/requestcontrol/plugins.go))
-  - **Function**: Converts incoming LLM prompts (both standard text completions and multi-modal chat messages) into token IDs for downstream filters and scorers. Communicates via Unix Domain Socket (UDS) with a tokenizer service from [`github.com/llm-d/llm-d-kv-cache/pkg/tokenization`](https://github.com/llm-d/llm-d-kv-cache), which runs as a separate sidecar container alongside the EPP pod. An embedded (in-process) alternative is also available in the same package. Fail-open: tokenization errors are logged and scheduling continues without token data.
-  - **Reference**: [tokenizer/README.md](../pkg/epp/framework/plugins/requestcontrol/dataproducer/tokenizer/README.md)
-- **Profile Handlers** ([`scheduling.ProfileHandler`](https://github.com/kubernetes-sigs/gateway-api-inference-extension/blob/main/pkg/epp/framework/interface/scheduling/plugins.go))
-  - **Function**: Orchestrates the selection and execution order of scheduling profiles. Every configuration must include exactly one handler.
-  - **Default:** [`single-profile-handler`](https://github.com/kubernetes-sigs/gateway-api-inference-extension/blob/main/pkg/epp/framework/plugins/scheduling/profile/single_profile_handler.go) (auto-injected when exactly one scheduling profile is defined and no handler is specified)
-  - **Reference**: [profilehandler/README.md](../pkg/epp/framework/plugins/scheduling/profilehandler/README.md)
-- **Deciders** (internal [`deciderPlugin`](../pkg/epp/framework/plugins/scheduling/profilehandler/disagg/decider-plugin.go))
-  - **Function**: Determine whether disaggregation should be applied to a specific request. Wired into `disagg-profile-handler` via the `deciders` configuration field.
-  - **Reference**: [profilehandler/README.md](../pkg/epp/framework/plugins/scheduling/profilehandler/README.md)
-- **Filters** ([`scheduling.Filter`](https://github.com/kubernetes-sigs/gateway-api-inference-extension/blob/main/pkg/epp/framework/interface/scheduling/plugins.go))
-  - **Function**: Excludes pods based on labels, label selectors, or specific pod roles.
-  - **Reference**: [filter/bylabel/README.md](../pkg/epp/framework/plugins/scheduling/filter/bylabel/README.md)
-- **Scorers** ([`scheduling.Scorer`](https://github.com/kubernetes-sigs/gateway-api-inference-extension/blob/main/pkg/epp/framework/interface/scheduling/plugins.go))
-  - **Function**: Scores pods using metrics such as KV-cache prefix matching, session affinity, current load, and active request counts. Each scorer returns a value in `[0, 1]` per pod; that value is multiplied by the scorer's `weight` (set in `schedulingProfiles`) and accumulated across all scorers into a final score per pod. The pod with the highest total is selected. Weight controls each scorer's relative influence — omitting it defaults to `0`, meaning the scorer has no effect.
-  - **Default:** `queue-scorer`, `kv-cache-utilization-scorer`, `prefix-cache-scorer`
-  - **Reference**: [scorer/README.md](../pkg/epp/framework/plugins/scheduling/scorer/README.md)
-- **PreRequest Plugins** ([`requestcontrol.PreRequest`](https://github.com/kubernetes-sigs/gateway-api-inference-extension/blob/main/pkg/epp/framework/interface/requestcontrol/plugins.go))
-  - **Function**: Run after scheduling and before the request is forwarded. Translate scheduling results into HTTP headers consumed by the vLLM sidecar.
-  - **Reference**: [profilehandler/README.md](../pkg/epp/framework/plugins/scheduling/profilehandler/README.md)
+The available plugins are grouped into five core categories based on their role within the request processing pipeline, as outlined below. For more detailed information, please refer to the README files located alongside each plugin's source code.
 
-**Plugins Pipeline**
+<img src="./images/plugins.png" alt="Plugin Execution Pipeline" width="100%"/>
 
-<img src="./images/plugins_pipeline.png" alt="Plugin Execution Pipeline" width="200"/>
+#### 1. Preparation & Setup
+
+- **[Data Layer](../pkg/epp/framework/plugins/datalayer/)**: Runs continuously in the background to monitor the health and stats of all the pods (servers) so the system knows what's available.
+  - **Default:** [`metrics-data-source`](../pkg/epp/framework/plugins/datalayer/source/metrics/) + [`core-metrics-extractor`](../pkg/epp/framework/plugins/datalayer/extractor/metrics/) (auto-injected)
+  - **Reference**: [datalayer/source/](../pkg/epp/framework/plugins/datalayer/source/), [datalayer/extractor/](../pkg/epp/framework/plugins/datalayer/extractor/)
+
+- **[Parsers](../pkg/epp/framework/plugins/requesthandling/parsers/) & [Producers](../pkg/epp/framework/plugins/requestcontrol/dataproducer/)**: Parsers parse incoming HTTP and gRPC request payloads to extract the model name and prompt. Producers enrich the request cycle state with additional metadata (e.g., token counts, prefix hashes, latency predictions) consumed by downstream scheduling plugins like scorers and admitters.
+  - **Default:** [`openai-parser`](../pkg/epp/framework/plugins/requesthandling/parsers/openai/) (auto-injected)
+  - **Reference**: [requesthandling/parsers/](../pkg/epp/framework/plugins/requesthandling/parsers/), [requestcontrol/dataproducer/](../pkg/epp/framework/plugins/requestcontrol/dataproducer/)
+
+- **[Flow Control](../pkg/epp/framework/plugins/flowcontrol/) & [Admitters](../pkg/epp/framework/plugins/requestcontrol/admitter/)**: Act as the bouncers. They check if the system is overloaded and will either queue the request or reject it to prevent crashes.
+  - **Default:** [`utilization-detector`](../pkg/epp/framework/plugins/flowcontrol/saturationdetector/utilization/) + [`fcfs-ordering-policy`](../pkg/epp/framework/plugins/flowcontrol/ordering/fcfs/) + [`global-strict-fairness-policy`](../pkg/epp/framework/plugins/flowcontrol/fairness/globalstrict/) + [`static-usage-limit-policy`](../pkg/epp/framework/plugins/flowcontrol/usagelimits/) (auto-injected when flow control is enabled)
+  - **Reference**: [flowcontrol/](../pkg/epp/framework/plugins/flowcontrol/), [requestcontrol/admitter/](../pkg/epp/framework/plugins/requestcontrol/admitter/)
+
+#### 2. Routing Logic
+
+- **[Profile Handlers & Deciders](../pkg/epp/framework/plugins/scheduling/profilehandler/)**: Orchestrates the selection and execution order of scheduling profiles. Every configuration must include exactly one handler.
+  - **Default:** [`single-profile-handler`](../pkg/epp/framework/plugins/scheduling/profilehandler/single/) (auto-injected when exactly one scheduling profile is defined and no handler is specified)
+  - **Reference**: [scheduling/profilehandler/](../pkg/epp/framework/plugins/scheduling/profilehandler/)
+
+#### 3. Filtering
+
+- **[Filters](../pkg/epp/framework/plugins/scheduling/filter/)**: Excludes pods based on labels, label selectors, specific pod roles, prefix cache state, or SLO headroom.
+  - **Reference**: [scheduling/filter/bylabel/](../pkg/epp/framework/plugins/scheduling/filter/bylabel/), [scheduling/filter/prefixcacheaffinity/](../pkg/epp/framework/plugins/scheduling/filter/prefixcacheaffinity/), [scheduling/filter/sloheadroomtier/](../pkg/epp/framework/plugins/scheduling/filter/sloheadroomtier/)
+
+#### 4. Scoring & Selection
+
+- **[Scorers](../pkg/epp/framework/plugins/scheduling/scorer/)**: Scores pods using metrics such as [KV-cache prefix matching](../pkg/epp/framework/plugins/scheduling/scorer/preciseprefixcache/), [session affinity](../pkg/epp/framework/plugins/scheduling/scorer/sessionaffinity/), [current load](../pkg/epp/framework/plugins/scheduling/scorer/loadaware/), and [active request counts](../pkg/epp/framework/plugins/scheduling/scorer/activerequest/). Each scorer returns a value in `[0, 1]` per pod; that value is multiplied by the scorer's `weight` (set in `schedulingProfiles`) and accumulated across all scorers into a final score per pod. The pod with the highest total is selected. Weight controls each scorer's relative influence — omitting it defaults to `0`, meaning the scorer has no effect.
+  - **Default:** [`queue-scorer`](../pkg/epp/framework/plugins/scheduling/scorer/queuedepth/), [`kv-cache-utilization-scorer`](../pkg/epp/framework/plugins/scheduling/scorer/kvcacheutilization/), [`prefix-cache-scorer`](../pkg/epp/framework/plugins/scheduling/scorer/prefix/)
+  - **Reference**: [scheduling/scorer/](../pkg/epp/framework/plugins/scheduling/scorer/)
+
+- **[Pickers](../pkg/epp/framework/plugins/scheduling/picker/)**: Select one or more candidate endpoints from the scored set for the final routing decision.
+  - **Default:** [`max-score-picker`](../pkg/epp/framework/plugins/scheduling/picker/maxscore/) (auto-injected)
+  - **Reference**: [scheduling/picker/](../pkg/epp/framework/plugins/scheduling/picker/)
+
+#### 5. Execution & Delivery
+
+- **[PreRequest Plugins](../pkg/epp/framework/plugins/scheduling/profilehandler/disagg/)**: Run after scheduling and before the request is forwarded. Translate scheduling results into HTTP headers consumed by the vLLM sidecar.
+  - **Reference**: [scheduling/profilehandler/](../pkg/epp/framework/plugins/scheduling/profilehandler/)
+
+- **[Response Processing](../pkg/epp/framework/plugins/requestcontrol/requestattributereporter/)**: Adds logging and metadata to the final generated text before handing it back to the user.
+  - **Reference**: [requestcontrol/requestattributereporter/](../pkg/epp/framework/plugins/requestcontrol/requestattributereporter/)
+
 
 ---
 
@@ -307,5 +325,5 @@ The **vLLM sidecar** handles orchestration between Encode, Prefill and Decode st
 
 ## References
 
-- [GIE Spec](https://gateway-api-inference-extension.sigs.k8s.io/)
+- [GIE Spec](../README.md#relation-to-gie-igw)
 - [Envoy External Processing](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/ext_proc_filter)

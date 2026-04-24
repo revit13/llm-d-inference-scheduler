@@ -1,7 +1,5 @@
 # ByLabel Filter Plugins
 
-> Note: This file outlines the available Filter plugins. See the [Architecture Overview](../../../../../../../docs/architecture.md) for details on how filters fit into the scheduling pipeline.
-
 ## Contents
 
 - [Available Filters](#available-filters)
