@@ -13,5 +13,8 @@ The HTTP Data Source is a base implementation for data layer sources that retrie
 
 The `metrics-data-source` uses `HTTPDataSource` as its underlying implementation, providing it with a Prometheus-specific parser.
 
+---
 
+## Related Documentation
 
+- [Architecture Overview](../../../../../../../docs/architecture.md)

@@ -6,6 +6,8 @@ It is registered as type `metrics-data-source` and runs as a data layer source.
 
 ## What it does
 
+**Type:** `metrics-data-source` | **Implementation:** [datasource.go](datasource.go)
+
 1.  Periodically (or when triggered) performs an HTTP GET request to a configured metrics endpoint (e.g., `http://<endpoint-ip>:8080/metrics`).
 2.  Parses the Prometheus text format response into a `PrometheusMetricMap`.
 3.  Provides the parsed metrics to any registered extractors (like the `core-metrics-extractor`).
@@ -31,3 +33,9 @@ parameters:
   path: "/metrics"
   insecureSkipVerify: true
 ```
+
+---
+
+## Related Documentation
+
+- [Architecture Overview](../../../../../../../docs/architecture.md)

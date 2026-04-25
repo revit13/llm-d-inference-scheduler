@@ -9,7 +9,7 @@
 
 ## Tokenizer
 
-**Type:** `tokenizer` | **Interfaces:** [`scheduling.Scorer`](https://github.com/kubernetes-sigs/gateway-api-inference-extension/blob/main/pkg/epp/framework/interface/scheduling/plugins.go) (default) · [`requestcontrol.PrepareDataPlugin`](https://github.com/kubernetes-sigs/gateway-api-inference-extension/blob/main/pkg/epp/framework/interface/requestcontrol/plugins.go) (build-tag)
+**Type:** `tokenizer` | **Interfaces:** [`scheduling.Scorer`](../../../../interface/scheduling/plugins.go) (default) · [`requestcontrol.PrepareDataPlugin`](../../../../interface/requestcontrol/plugins.go) (build-tag)
 
 Converts incoming LLM prompts (both standard text completions and multi-modal chat messages) into token IDs for downstream filters and scorers. Communicates via Unix Domain Socket (UDS) with a tokenizer service from [`github.com/llm-d/llm-d-kv-cache/pkg/tokenization`](https://github.com/llm-d/llm-d-kv-cache), which runs as a separate sidecar container alongside the EPP pod. An embedded (in-process) alternative is also available in the same package. Fail-open: tokenization errors are logged and scheduling continues without token data.
 
@@ -89,7 +89,7 @@ schedulingProfiles:
 go build -tags gaie_tokenized_prompt
 ```
 
-Implements [`requestcontrol.PrepareDataPlugin`](https://github.com/kubernetes-sigs/gateway-api-inference-extension/blob/main/pkg/epp/framework/interface/requestcontrol/plugins.go); registered under `prepareData:` in config. Stores token IDs directly on `request.TokenizedPrompt` and runs in the PrepareData phase, before filters and scorers. Use this mode when the GAIE framework version exposes `LLMRequest.TokenizedPrompt`.
+Implements [`requestcontrol.PrepareDataPlugin`](../../../../interface/requestcontrol/plugins.go); registered under `prepareData:` in config. Stores token IDs directly on `request.TokenizedPrompt` and runs in the PrepareData phase, before filters and scorers. Use this mode when the GAIE framework version exposes `LLMRequest.TokenizedPrompt`.
 
 **Configuration Example:**
 ```yaml

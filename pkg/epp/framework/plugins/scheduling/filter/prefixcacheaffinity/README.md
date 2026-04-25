@@ -2,6 +2,8 @@
 
 ## When to use this filter
 
+**Type:** `prefix-cache-affinity-filter` | **Implementation:** [plugin.go](plugin.go)
+
 Enable this filter when your workload has repeated or similar prompts across requests (e.g.,
 shared system prompts, multi-turn conversations, or RAG pipelines with overlapping context).
 In these scenarios, vLLM's automatic prefix caching keeps KV cache blocks from previous
@@ -73,3 +75,25 @@ Can be instantiated multiple times with different thresholds (e.g., 0.99 for glo
 
 - Reads `PrefixCacheMatchInfo` from endpoint attributes (from `prefix-cache-scorer`)
 - Reads `LatencyPredictionInfo` for TTFT load gate (from `predicted-latency-producer`)
+
+**Configuration Example:**
+```yaml
+plugins:
+  - type: prefix-cache-affinity-filter
+    name: prefix-affinity
+    parameters:
+      affinityThreshold: 0.80
+      explorationProbability: 0.01
+      maxTTFTPenaltyMs: 5000
+schedulingProfiles:
+  - name: default
+    plugins:
+      - pluginRef: prefix-affinity
+```
+
+---
+
+## Related Documentation
+
+- [Architecture Overview](../../../../../../../docs/architecture.md)
+- [Filter Plugins Index](../README.md)

@@ -10,6 +10,8 @@ the negative tier (the filter is effectively a no-op).
 
 ## Behavior
 
+**Type:** `slo-headroom-tier-filter` | **Implementation:** [plugin.go](plugin.go)
+
 - Positive tier: `TTFTHeadroom >= 0 AND TPOTHeadroom >= 0`
 - Negative tier: at least one headroom is negative
 - When both tiers exist: 99% keep positive only, 1% keep negative only (epsilon exploration)
@@ -30,3 +32,23 @@ so their state is re-evaluated.
 
 - `LatencyPredictionInfo` endpoint attribute:
   - `TTFTHeadroom` / `TPOTHeadroom` for tier classification
+
+**Configuration Example:**
+```yaml
+plugins:
+  - type: slo-headroom-tier-filter
+    name: slo-tier
+    parameters:
+      epsilonExploreNeg: 0.01
+schedulingProfiles:
+  - name: default
+    plugins:
+      - pluginRef: slo-tier
+```
+
+---
+
+## Related Documentation
+
+- [Architecture Overview](../../../../../../../docs/architecture.md)
+- [Filter Plugins Index](../README.md)

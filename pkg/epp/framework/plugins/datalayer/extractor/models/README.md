@@ -12,7 +12,7 @@ These two plugins work together and require a small amount of wiring in the `End
 
 - Both are declared under `plugins:` (like any other plugin).
 - They are linked in a separate top-level `data: sources:` section, which tells the framework which extractor(s) to invoke when a given data source finishes fetching. This section is distinct from `schedulingProfiles:`.
-- The string `"dataLayer"` must appear in the top-level `featureGates:` list. This is an experimental feature gate defined in [GIE (`ExperimentalDatalayerFeatureGate`)](https://github.com/kubernetes-sigs/gateway-api-inference-extension/blob/main/pkg/epp/datalayer/factory.go) — without it the EPP ignores the `data:` section entirely; with it the EPP requires `data: sources:` to be present (missing it causes a startup error).
+- The string `"dataLayer"` must appear in the top-level `featureGates:` list. This is an experimental feature gate defined in [`ExperimentalDatalayerFeatureGate`](../../../../../datalayer/factory.go) — without it the EPP ignores the `data:` section entirely; with it the EPP requires `data: sources:` to be present (missing it causes a startup error).
 
 On each scheduling cycle: the data source polls every pod in the `InferencePool` individually (`GET scheme://pod-ip:metricsPort/path`), the extractor converts each response into a `ModelInfoCollection` stored on that pod's endpoint, and filters/scorers access it via `endpoint.GetAttributes().Get("/v1/models")`.
 

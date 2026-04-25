@@ -6,6 +6,8 @@ The First-Come, First-Served (FCFS) ordering policy selects requests based on th
 
 ## Why Choose This Policy?
 
+**Type:** `fcfs-ordering-policy` | **Implementation:** [fcfs.go](fcfs.go)
+
 - **Simplicity and Intuitive Behavior:** Requests are processed in the order they arrive, making the system behavior easy to understand and predict.
 - **No Special Inputs Required:** Unlike policies that rely on deadlines or priorities, FCFS works without any additional request metadata or headers.
 - **Good for Homogeneous Workloads:** When all requests have similar processing costs and importance, FCFS is often the fairest approach.
@@ -46,5 +48,5 @@ orderingPolicyRef: fcfs-ordering-policy
 
 ## Related Documentation
 
+*   [Architecture Overview](../../../../../../../docs/architecture.md)
 *   [Ordering Overview](../README.md)
-*   [Flow Control User Guide](https://github.com/kubernetes-sigs/gateway-api-inference-extension/blob/v1.5.0/site-src/guides/flow-control.md)

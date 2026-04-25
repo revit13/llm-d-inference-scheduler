@@ -4,6 +4,8 @@ Trains XGBoost models via a sidecar and generates per-endpoint TTFT/TPOT predict
 
 ## Interfaces
 
+**Type:** `predicted-latency-producer` | **Implementation:** [plugin.go](plugin.go)
+
 PrepareDataPlugin, PreRequest, ResponseHeader, ResponseBody, Producer, Consumer
 
 ## Responsibilities
@@ -60,3 +62,9 @@ ensuring TPOT doesn't affect scoring, admission, or tier classification for pref
 | `prediction.go` | generatePredictions, validatePrediction, TPOT neutralization |
 | `decode_token_sampler.go` | Poisson-distributed token sampling for TPOT |
 | `running_request_queue.go` | Per-pod request priority queue |
+
+---
+
+## Related Documentation
+
+- [Architecture Overview](../../../../../../../docs/architecture.md)

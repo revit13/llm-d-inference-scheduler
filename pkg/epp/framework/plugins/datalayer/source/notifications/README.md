@@ -142,3 +142,9 @@ func (e *EndpointEventLogger) ExtractEndpoint(_ context.Context, event fwkdl.End
 	return nil
 }
 ```
+
+---
+
+## Related Documentation
+
+- [Architecture Overview](../../../../../../../docs/architecture.md)

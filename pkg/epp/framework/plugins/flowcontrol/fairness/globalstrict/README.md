@@ -6,6 +6,8 @@ It is registered as type `global-strict-fairness-policy` and runs as a fairness 
 
 ## Why choose this policy?
 
+**Type:** `global-strict-fairness-policy` | **Implementation:** [global_strict.go](global_strict.go)
+
 While this policy does not provide fairness between tenants, it is the ideal choice when:
 *   **Global Ordering is Paramount**: You want to strictly enforce arrival order (FCFS) or deadline order (EDF) across *all* requests in a priority band, regardless of which tenant sent them.
 *   **No Multi-Tenancy Contention**: You do not need to protect against "noisy neighbors" within a priority level, or you handle isolation at a different layer.
@@ -47,5 +49,5 @@ All flows in the band **MUST** use compatible `OrderingPolicy` types (i.e., iden
 
 ## Related Documentation
 
+*   [Architecture Overview](../../../../../../../docs/architecture.md)
 *   [Fairness Overview](../README.md)
-*   [Flow Control User Guide](https://github.com/kubernetes-sigs/gateway-api-inference-extension/blob/v1.5.0/site-src/guides/flow-control.md)
