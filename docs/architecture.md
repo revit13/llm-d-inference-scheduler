@@ -236,7 +236,7 @@ The available plugins are grouped into five core categories based on their role 
   - **Interface:** [`DataSource`](../pkg/epp/framework/interface/datalayer/plugin.go) · [`Extractor`](../pkg/epp/framework/interface/datalayer/plugin.go)
   - **Reference**: [datalayer/source/](../pkg/epp/framework/plugins/datalayer/source/), [datalayer/extractor/](../pkg/epp/framework/plugins/datalayer/extractor/)
 
-- **[Parsers](../pkg/epp/framework/plugins/requesthandling/parsers/) & [Producers](../pkg/epp/framework/plugins/requestcontrol/dataproducer/)**: Parsers parse incoming HTTP and gRPC request payloads to extract the model name and prompt. Producers enrich the request cycle state with additional metadata (e.g., token counts, prefix hashes, latency predictions) consumed by downstream scheduling plugins like scorers and admitters.
+- **[Parsers](../pkg/epp/framework/plugins/requesthandling/parsers/) & [Producers](../pkg/epp/framework/plugins/requestcontrol/dataproducer/)**: Parsers inspect incoming HTTP and gRPC request payloads to extract the model name and prompt. Producers enrich the request cycle state with additional metadata (e.g., token counts, prefix hashes, latency predictions) consumed by downstream scheduling plugins like scorers and admitters.
   - **Default:** [`openai-parser`](../pkg/epp/framework/plugins/requesthandling/parsers/openai/) (framework-injected, no config needed)
   - **Interface:** [`Parser`](../pkg/epp/framework/interface/requesthandling/plugins.go) · [`DataProducer`](../pkg/epp/framework/interface/requestcontrol/plugins.go)
   - **Reference**: [requesthandling/parsers/](../pkg/epp/framework/plugins/requesthandling/parsers/), [requestcontrol/dataproducer/](../pkg/epp/framework/plugins/requestcontrol/dataproducer/)
@@ -249,7 +249,7 @@ The available plugins are grouped into five core categories based on their role 
 #### 2. Routing Logic
 
 - **[Profile Handlers & Deciders](../pkg/epp/framework/plugins/scheduling/profilehandler/)**: Orchestrates the selection and execution order of scheduling profiles. Every configuration must include exactly one handler.
-  - **Default:** [`single-profile-handler`](../pkg/epp/framework/plugins/scheduling/profilehandler/single/) (auto-injected when exactly one scheduling profile is defined and no handler is specified)
+  - **Default:** [`single-profile-handler`](../pkg/epp/framework/plugins/scheduling/profilehandler/single/) (framework-injected when exactly one scheduling profile is defined and no handler is specified)
   - **Interface:** [`ProfileHandler`](../pkg/epp/framework/interface/scheduling/plugins.go)
   - **Reference**: [scheduling/profilehandler/](../pkg/epp/framework/plugins/scheduling/profilehandler/)
 
