@@ -49,4 +49,3 @@ schedulingProfiles:
 ## Related Documentation
 
 - [Architecture Overview](../../../../../../../docs/architecture.md)
-- [Scorer Plugins Index](../README.md)

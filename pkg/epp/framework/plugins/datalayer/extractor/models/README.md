@@ -9,7 +9,9 @@ For setup, configuration, and the complete wiring example see the [Models Data S
 ## What it does
 
 1. Receives the parsed API response forwarded by [`models-data-source`](../../source/models/README.md).
-2. Converts it into a [`ModelInfoCollection`](extractor.go#L19).
+2. Converts it into a [`ModelInfoCollection`](extractor.go#L19) — a slice of [`ModelInfo`](extractor.go#L22) entries, each with:
+   - `ID` (string): model identifier (e.g. `"llama-3-8b"`).
+   - `Parent` (string, optional): base model the adapter derives from.
 3. Stores the collection as an attribute on the corresponding endpoint.
 
 ## Inputs consumed

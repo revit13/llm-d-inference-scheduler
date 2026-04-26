@@ -4,6 +4,8 @@ Reactive saturation detection and scheduling filter based on telemetry from LLM 
 
 It is registered as type `utilization-detector` and runs as a saturation detector and scheduling filter.
 
+> Note: This plugin is auto-injected when flow control is enabled — you do not need to declare it explicitly.
+
 ## What it does
 
 **Type:** `utilization-detector` | **Implementation:** [detector.go](detector.go)

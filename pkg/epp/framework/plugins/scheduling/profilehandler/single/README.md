@@ -21,4 +21,3 @@ plugins:
 - [Architecture Overview](../../../../../../../docs/architecture.md)
 - [Disagg Profile Handler](../disagg/)
 - [DataParallel Profile Handler](../dataparallel/)
-- [Scorer Plugins](../../scorer/README.md)

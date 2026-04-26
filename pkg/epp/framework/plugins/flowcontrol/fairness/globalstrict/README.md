@@ -4,6 +4,8 @@ The Global Strict fairness policy is a greedy strategy that operates across all 
 
 It is registered as type `global-strict-fairness-policy` and runs as a fairness policy.
 
+> Note: This plugin is auto-injected when flow control is enabled — you do not need to declare it explicitly.
+
 ## Why choose this policy?
 
 **Type:** `global-strict-fairness-policy` | **Implementation:** [global_strict.go](global_strict.go)

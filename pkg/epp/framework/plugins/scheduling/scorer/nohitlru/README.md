@@ -48,4 +48,3 @@ schedulingProfiles:
 - [Architecture Overview](../../../../../../../docs/architecture.md)
 - [Precise Prefix Cache Scorer](../preciseprefixcache/)
 - [Prefix Cache Scorer](../prefix/)
-- [Scorer Plugins Index](../README.md)

@@ -186,4 +186,3 @@ In this example:
 - [Architecture Overview](../../../../../../../docs/architecture.md)
 - [SingleProfileHandler](../single/)
 - [Filter Plugins](../../filter/bylabel/README.md)
-- [Scorer Plugins](../../scorer/README.md)

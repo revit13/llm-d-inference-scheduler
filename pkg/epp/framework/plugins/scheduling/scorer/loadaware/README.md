@@ -33,4 +33,3 @@ schedulingProfiles:
 - [Architecture Overview](../../../../../../../docs/architecture.md)
 - [Queue Depth Scorer](../queuedepth/)
 - [Running Requests Scorer](../runningrequests/)
-- [Scorer Plugins Index](../README.md)

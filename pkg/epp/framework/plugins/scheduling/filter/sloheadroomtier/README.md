@@ -51,4 +51,3 @@ schedulingProfiles:
 ## Related Documentation
 
 - [Architecture Overview](../../../../../../../docs/architecture.md)
-- [Filter Plugins Index](../README.md)

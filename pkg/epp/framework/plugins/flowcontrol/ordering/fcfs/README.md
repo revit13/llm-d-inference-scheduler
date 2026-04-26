@@ -2,6 +2,8 @@
 
 It is registered as type `fcfs-ordering-policy` and runs as an ordering policy.
 
+> Note: This is the default ordering policy when flow control is enabled — you do not need to declare it explicitly.
+
 The First-Come, First-Served (FCFS) ordering policy selects requests based on their arrival order at the Flow Control layer.
 
 ## Why Choose This Policy?

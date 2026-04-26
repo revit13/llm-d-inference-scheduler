@@ -114,4 +114,3 @@ Requires the `prepareDataPlugins` feature gate and KV events from vLLM.
 - [Architecture Overview](../../../../../../../docs/architecture.md)
 - [Prefix Cache Scorer (history-based)](../prefix/)
 - [No-Hit LRU Scorer](../nohitlru/)
-- [Scorer Plugins Index](../README.md)

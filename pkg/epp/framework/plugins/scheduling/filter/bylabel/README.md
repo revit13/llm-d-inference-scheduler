@@ -174,5 +174,4 @@ plugins:
 ## Related Documentation
 
 - [Architecture Overview](../../../../../../../docs/architecture.md)
-- [Filter Plugins Index](../README.md)
 - [Creating a Custom Filter](../../../../../../../docs/create_new_filter.md)

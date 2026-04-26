@@ -4,6 +4,8 @@ This plugin scores candidate endpoints by current waiting-queue depth.
 
 It is registered as type `queue-scorer` and runs as a scheduling scorer.
 
+> Note: This scorer is included in the default out-of-the-box configuration.
+
 ## What it does
 
 **Type:** `queue-scorer` | **Implementation:** [queue.go](queue.go)
@@ -53,4 +55,3 @@ schedulingProfiles:
 ## Related Documentation
 
 - [Architecture Overview](../../../../../../../docs/architecture.md)
-- [Scorer Plugins Index](../README.md)

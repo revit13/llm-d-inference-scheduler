@@ -92,4 +92,3 @@ combination of KV cache utilization, queue depth, and prefix cache score.
 ## Related Documentation
 
 - [Architecture Overview](../../../../../../../docs/architecture.md)
-- [Scorer Plugins Index](../README.md)
