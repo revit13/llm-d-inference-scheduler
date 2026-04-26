@@ -1,5 +1,7 @@
 # Core Metrics Extractor
 
+**Type:** `core-metrics-extractor` | **Implementation:** [extractor.go](extractor.go)
+
 The Core Metrics Extractor is a data layer plugin responsible for extracting model server metrics from a data source and storing them as endpoint attributes. It supports multiple inference engines and can be configured to map engine-specific metric names to a standard set of internal keys.
 
 It is registered as type `core-metrics-extractor` and runs as a data layer extractor.

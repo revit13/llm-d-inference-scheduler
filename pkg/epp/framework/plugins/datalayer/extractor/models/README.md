@@ -1,18 +1,20 @@
 # Model Server Extractor
 
-The Model Server Extractor converts the response from a `models-data-source` into endpoint attributes consumed by filters and scorers. It is registered as type `model-server-protocol-models` and runs as a data layer extractor.
+**Type:** `model-server-protocol-models` | **Implementation:** [extractor.go](extractor.go)
+
+The Model Server Extractor converts the response from a [`models-data-source`](../../source/models/README.md) into endpoint attributes consumed by filters and scorers. It is registered as type `model-server-protocol-models` and runs as a data layer extractor.
 
 For setup, configuration, and the complete wiring example see the [Models Data Source](../../source/models/README.md).
 
 ## What it does
 
-1. Receives the parsed API response forwarded by `models-data-source`.
+1. Receives the parsed API response forwarded by [`models-data-source`](../../source/models/README.md).
 2. Converts it into a `ModelInfoCollection`.
 3. Stores the collection as an attribute on the corresponding endpoint.
 
 ## Inputs consumed
 
-- Parsed API response from a `models-data-source`.
+- Parsed API response from a [`models-data-source`](../../source/models/README.md).
 
 ## Attributes produced
 

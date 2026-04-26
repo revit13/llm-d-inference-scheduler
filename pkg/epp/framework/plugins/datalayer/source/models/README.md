@@ -1,5 +1,7 @@
 # Models Data Source
 
+**Type:** `models-data-source` | **Implementation:** [factories.go](factories.go)
+
 The Models Data Source polls inference server pods for model information and passes the response to a paired `model-server-protocol-models` extractor. It is registered as type `models-data-source` and runs as a data layer source.
 
 The `"dataLayer"` feature gate must appear in the top-level `featureGates:` list — this is an experimental feature gate defined in [`ExperimentalDatalayerFeatureGate`](../../../../../datalayer/factory.go); without it the EPP ignores the `data:` section entirely, and with it `data: sources:` must be present (missing it causes a startup error).
