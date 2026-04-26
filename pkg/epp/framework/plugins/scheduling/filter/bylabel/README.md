@@ -4,9 +4,9 @@ Label-based filters that retain or remove candidate pods based on Kubernetes lab
 
 ## ByLabel
 
-### Behavior
-
 **Type:** `by-label` | **Implementation:** [filter.go](filter.go)
+
+### Behavior
 
 Filters out pods that do not have a specific label with one of the allowed values. Pods missing the label are either filtered out or retained based on the `allowsNoLabel` setting.
 
@@ -40,9 +40,9 @@ In this example:
 
 ## ByLabelSelector
 
-### Behavior
-
 **Type:** `by-label-selector` | **Implementation:** [selector.go](selector.go)
+
+### Behavior
 
 Filters out pods using a standard Kubernetes label selector.
 

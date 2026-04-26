@@ -4,11 +4,9 @@
 
 The Core Metrics Extractor is a data layer plugin responsible for extracting model server metrics from a data source and storing them as endpoint attributes. It supports multiple inference engines and can be configured to map engine-specific metric names to a standard set of internal keys.
 
-It is registered as type `core-metrics-extractor` and runs as a data layer extractor.
-
 ## What it does
 
-1.  Receives a `PrometheusMetricMap` from a metrics data source (e.g., `metrics-data-source`).
+1.  Receives a `PrometheusMetricMap` from a metrics data source (e.g., [`metrics-data-source`](../../source/metrics/README.md)).
 2.  Identifies the inference engine type of the endpoint (e.g., vLLM, SGLang, Triton) using a Pod label.
 3.  Looks up the metric specifications for that engine.
 4.  Extracts values for standard metrics:
@@ -21,7 +19,7 @@ It is registered as type `core-metrics-extractor` and runs as a data layer extra
 
 ## Inputs consumed
 
--   `PrometheusMetricMap`: A map of Prometheus metric families, typically produced by `metrics-data-source`.
+-   `PrometheusMetricMap`: A map of Prometheus metric families, typically produced by [`metrics-data-source`](../../source/metrics/README.md).
 
 ## Attributes produced
 

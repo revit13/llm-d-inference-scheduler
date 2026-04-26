@@ -4,8 +4,6 @@
 
 The Metrics Data Source is a data layer plugin that polls a Prometheus-compatible metrics endpoint of a model server and parses the response into a structured format for extraction.
 
-It is registered as type `metrics-data-source` and runs as a data layer source.
-
 ## What it does
 
 1.  Periodically (or when triggered) performs an HTTP GET request to a configured metrics endpoint (e.g., `http://<endpoint-ip>:8080/metrics`).

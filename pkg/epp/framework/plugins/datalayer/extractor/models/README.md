@@ -2,14 +2,14 @@
 
 **Type:** `model-server-protocol-models` | **Implementation:** [extractor.go](extractor.go)
 
-The Model Server Extractor converts the response from a [`models-data-source`](../../source/models/README.md) into endpoint attributes consumed by filters and scorers. It is registered as type `model-server-protocol-models` and runs as a data layer extractor.
+The Model Server Extractor converts the response from a [`models-data-source`](../../source/models/README.md) into endpoint attributes consumed by filters and scorers.
 
 For setup, configuration, and the complete wiring example see the [Models Data Source](../../source/models/README.md).
 
 ## What it does
 
 1. Receives the parsed API response forwarded by [`models-data-source`](../../source/models/README.md).
-2. Converts it into a `ModelInfoCollection`.
+2. Converts it into a [`ModelInfoCollection`](extractor.go#L19).
 3. Stores the collection as an attribute on the corresponding endpoint.
 
 ## Inputs consumed
@@ -18,7 +18,7 @@ For setup, configuration, and the complete wiring example see the [Models Data S
 
 ## Attributes produced
 
-- `ModelInfoCollection` stored at attribute key `/v1/models` on each endpoint.
+- [`ModelInfoCollection`](extractor.go#L19) stored at attribute key `/v1/models` on each endpoint.
 
 ```go
 attr, ok := endpoint.GetAttributes().Get("/v1/models")

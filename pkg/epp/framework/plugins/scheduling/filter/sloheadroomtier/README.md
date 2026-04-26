@@ -1,5 +1,7 @@
 # SLO Headroom Tier Filter (`slo-headroom-tier-filter`)
 
+**Type:** `slo-headroom-tier-filter` | **Implementation:** [plugin.go](plugin.go)
+
 Probabilistic filter that selects endpoints based on predicted latency headroom
 (SLO - predicted). Splits endpoints into positive (meets SLO) and negative (violates SLO)
 tiers and probabilistically selects one tier.
@@ -9,8 +11,6 @@ headroom = 0 - predicted, which is always negative. All endpoints pass through i
 the negative tier (the filter is effectively a no-op).
 
 ## Behavior
-
-**Type:** `slo-headroom-tier-filter` | **Implementation:** [plugin.go](plugin.go)
 
 - Positive tier: `TTFTHeadroom >= 0 AND TPOTHeadroom >= 0`
 - Negative tier: at least one headroom is negative
