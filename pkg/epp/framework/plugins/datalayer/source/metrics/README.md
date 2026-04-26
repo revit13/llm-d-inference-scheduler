@@ -39,3 +39,4 @@ parameters:
 ## Related Documentation
 
 - [Architecture Overview](../../../../../../../docs/architecture.md)
+- [Core Metrics Extractor](../../extractor/metrics/README.md)

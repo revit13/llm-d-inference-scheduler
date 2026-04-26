@@ -80,3 +80,10 @@ metadata:
 
 ```
 
+---
+
+## Related Documentation
+
+- [Architecture Overview](../../../../../../../docs/architecture.md)
+- [Metrics Data Source](../../source/metrics/README.md)
+

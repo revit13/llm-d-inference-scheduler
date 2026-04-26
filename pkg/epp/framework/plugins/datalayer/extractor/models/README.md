@@ -1,71 +1,22 @@
-# Models Data Layer Plugins
+# Model Server Extractor
 
-## Contents
+The Model Server Extractor converts the response from a `models-data-source` into endpoint attributes consumed by filters and scorers. It is registered as type `model-server-protocol-models` and runs as a data layer extractor.
 
-- [Available Data Layer Plugins](#available-data-layer-plugins)
-  - [ModelsDataSource](#modelsdatasource)
-  - [ModelServerExtractor](#modelserverextractor)
+For setup, configuration, and the complete wiring example see the [Models Data Source](../../source/models/README.md).
 
-## Available Data Layer Plugins
+## What it does
 
-These two plugins work together and require a small amount of wiring in the `EndpointPickerConfig`:
+1. Receives the parsed API response forwarded by `models-data-source`.
+2. Converts it into a `ModelInfoCollection`.
+3. Stores the collection as an attribute on the corresponding endpoint.
 
-- Both are declared under `plugins:` (like any other plugin).
-- They are linked in a separate top-level `data: sources:` section, which tells the framework which extractor(s) to invoke when a given data source finishes fetching. This section is distinct from `schedulingProfiles:`.
-- The string `"dataLayer"` must appear in the top-level `featureGates:` list. This is an experimental feature gate defined in [`ExperimentalDatalayerFeatureGate`](../../../../../datalayer/factory.go) — without it the EPP ignores the `data:` section entirely; with it the EPP requires `data: sources:` to be present (missing it causes a startup error).
+## Inputs consumed
 
-On each scheduling cycle: the data source polls every pod in the `InferencePool` individually (`GET scheme://pod-ip:metricsPort/path`), the extractor converts each response into a `ModelInfoCollection` stored on that pod's endpoint, and filters/scorers access it via `endpoint.GetAttributes().Get("/v1/models")`.
+- Parsed API response from a `models-data-source`.
 
-### ModelsDataSource
+## Attributes produced
 
-**Type:** `models-data-source`
-
-Fetches model information from inference servers using HTTP/HTTPS requests to the `/v1/models` endpoint (or a configured path).
-
-**Parameters:**
-- `scheme` (string, optional, default: `"http"`): Protocol scheme: `"http"` or `"https"`.
-- `path` (string, optional, default: `"/v1/models"`): URL path for the models API endpoint.
-- `insecureSkipVerify` (bool, optional, default: `true`): Skip TLS certificate verification.
-
-**Configuration Example:**
-```yaml
-- type: models-data-source
-  name: my-models-source
-  parameters:
-    scheme: "http"
-    path: "/v1/models"
-    insecureSkipVerify: true
-```
-
-#### Expected API Response Format
-
-The data source expects responses in the OpenAI-compatible format:
-
-```json
-{
-  "object": "list",
-  "data": [
-    { "id": "llama-3-8b", "parent": "llama-3" },
-    { "id": "mistral-7b", "parent": "mistral" }
-  ]
-}
-```
-
-### ModelServerExtractor
-
-**Type:** `model-server-protocol-models`
-
-Extracts model information from the data source response and stores it as a `ModelInfoCollection` at attribute key `/v1/models` on each endpoint.
-
-No configuration parameters.
-
-**Configuration Example:**
-```yaml
-- type: model-server-protocol-models
-  name: my-models-extractor
-```
-
-#### Accessing Extracted Data
+- `ModelInfoCollection` stored at attribute key `/v1/models` on each endpoint.
 
 ```go
 attr, ok := endpoint.GetAttributes().Get("/v1/models")
@@ -75,32 +26,16 @@ if !ok || attr == nil {
 models, ok := attr.(models.ModelInfoCollection)
 ```
 
-#### Complete Configuration Example
+## Configuration
+
+No configuration parameters.
 
 ```yaml
-apiVersion: inference.networking.x-k8s.io/v1alpha1
-kind: EndpointPickerConfig
-featureGates:
-- dataLayer
-plugins:
-- type: models-data-source
-  name: vllm-models-source
-  parameters:
-    scheme: "https"
-    path: "/v1/models"
-    insecureSkipVerify: false
 - type: model-server-protocol-models
-  name: vllm-models-extractor
-# ... other plugins (filters, scorers, profile handler, picker) ...
-data:
-  sources:
-  - pluginRef: vllm-models-source
-    extractors:
-    - pluginRef: vllm-models-extractor
+  name: my-models-extractor
 ```
 
 ## Related Documentation
 
 - [Architecture Overview](../../../../../../../docs/architecture.md)
-- [Scorer Plugins](../../../scheduling/scorer/README.md)
-- [Filter Plugins](../../../scheduling/filter/bylabel/README.md)
+- [Models Data Source](../../source/models/README.md)

@@ -1,20 +1,44 @@
 # Tokenizer Plugin
 
-## Contents
-
-- [Tokenizer](#tokenizer)
-  - [Scorer Mode (default)](#scorer-mode-default)
-  - [PrepareData Mode](#preparedata-mode-gaie_tokenized_prompt-tag)
-
-
 ## Tokenizer
 
 **Type:** `tokenizer` | **Interfaces:** [`scheduling.Scorer`](../../../../interface/scheduling/plugins.go) (default) · [`requestcontrol.PrepareDataPlugin`](../../../../interface/requestcontrol/plugins.go) (build-tag)
 
-Converts incoming LLM prompts (both standard text completions and multi-modal chat messages) into token IDs for downstream filters and scorers. Communicates via Unix Domain Socket (UDS) with a tokenizer service from [`github.com/llm-d/llm-d-kv-cache/pkg/tokenization`](https://github.com/llm-d/llm-d-kv-cache), which runs as a separate sidecar container alongside the EPP pod. An embedded (in-process) alternative is also available in the same package. Fail-open: tokenization errors are logged and scheduling continues without token data.
+Converts incoming LLM prompts (both standard text completions and multi-modal chat messages) into token IDs for downstream filters and scorers. Communicates via Unix Domain Socket (UDS) with a tokenizer service from [`github.com/llm-d/llm-d-kv-cache`](https://github.com/llm-d/llm-d-kv-cache), which runs as a separate sidecar container alongside the EPP pod. An embedded (in-process) alternative is also available in the same package. Fail-open: tokenization errors are logged and scheduling continues without token data.
 
+The plugin supports two modes selected at build time:
 
-**Parameters:**
+- **Scorer mode** (default): hooks into the `Score` call to tokenize the request and share results via `CycleState`.
+- **PrepareData mode** (`gaie_tokenized_prompt` build tag): runs in the PrepareData phase and stores token IDs directly on `request.TokenizedPrompt`.
+
+## What it does
+
+1. Receives the prompt from the incoming LLM request (text completion or multi-modal chat).
+2. Sends the prompt to the tokenizer service over UDS and receives token IDs in return.
+3. **Scorer mode**: writes the result into `CycleState` under `tokenizer.TokenizedPromptStateKey` for downstream scorers to read without re-tokenizing.
+4. **PrepareData mode**: stores token IDs directly on `request.TokenizedPrompt`, available to all subsequent pipeline stages.
+
+## Inputs consumed
+
+- LLM request body: standard text prompt or multi-modal chat messages.
+- Tokenizer service: a sidecar process (or in-process instance) reachable at the configured UDS socket path.
+
+## Attributes produced
+
+- **Scorer mode**: `TokenizedPromptState` written to `CycleState` under key `tokenizer.TokenizedPromptStateKey`.
+
+  ```go
+  state, err := scheduling.ReadCycleStateKey[*tokenizer.TokenizedPromptState](
+      cycleState, tokenizer.TokenizedPromptStateKey,
+  )
+  ```
+
+  > **Note:** Multi-modal features (`MMFeatures`) are only populated in scorer mode.
+
+- **PrepareData mode**: token IDs stored on `request.TokenizedPrompt`.
+
+## Configuration
+
 - `modelName` (string, required): Model name whose tokenizer to load.
 - `udsTokenizerConfig.socketFile` (string, optional, default: `"/tmp/tokenizer/tokenizer-uds.socket"`): Path to the Unix domain socket.
 - `udsTokenizerConfig.timeout` (string, optional, default: `"5s"`): Timeout for tokenizer requests (Go duration string).
@@ -22,19 +46,8 @@ Converts incoming LLM prompts (both standard text completions and multi-modal ch
 
 ### Scorer Mode (default)
 
-Registered under `scorers:` in config. The plugin uses the `Score` call as a hook to tokenize the request and write the result into `CycleState` — a per-request scratchpad shared across all scorers in the same scheduling cycle. It always returns zero scores for every pod so it has no effect on ranking; its sole purpose is to make the token IDs available to downstream scorers (e.g. [`precise-prefix-cache-scorer`](../../../scheduling/scorer/README.md#precise-prefix-cache-scorer), [`context-length-aware`](../../../scheduling/scorer/README.md#context-length-aware-scorer)) without those scorers needing to re-tokenize.
+Registered under `scorers:` in config. Always returns zero scores — its sole purpose is to make token IDs available to downstream scorers (e.g. `precise-prefix-cache-scorer`, `context-length-aware`) without those scorers needing to re-tokenize.
 
-Read by downstream plugins:
-
-```go
-state, err := scheduling.ReadCycleStateKey[*tokenizer.TokenizedPromptState](
-    cycleState, tokenizer.TokenizedPromptStateKey,
-)
-```
-
-> **Note:** Multi-modal features (`MMFeatures`) are only populated in scorer mode. PrepareData mode stores token IDs only.
-
-**Configuration Example:**
 ```yaml
 - type: tokenizer
   name: tokenizer
@@ -47,7 +60,8 @@ state, err := scheduling.ReadCycleStateKey[*tokenizer.TokenizedPromptState](
       maxRetries: 3
 ```
 
-**Configuration Example — with cache-aware routing:**
+With cache-aware routing:
+
 ```yaml
 plugins:
   - type: tokenizer
@@ -64,7 +78,8 @@ schedulingProfiles:
         weight: 10
 ```
 
-**Configuration Example — with context-length routing:**
+With context-length routing:
+
 ```yaml
 plugins:
   - type: tokenizer
@@ -89,9 +104,8 @@ schedulingProfiles:
 go build -tags gaie_tokenized_prompt
 ```
 
-Implements [`requestcontrol.PrepareDataPlugin`](../../../../interface/requestcontrol/plugins.go); registered under `prepareData:` in config. Stores token IDs directly on `request.TokenizedPrompt` and runs in the PrepareData phase, before filters and scorers. Use this mode when the GAIE framework version exposes `LLMRequest.TokenizedPrompt`.
+Implements `requestcontrol.PrepareDataPlugin`; registered under `prepareData:` in config. Runs before filters and scorers. Use this mode when the framework version exposes `LLMRequest.TokenizedPrompt`.
 
-**Configuration Example:**
 ```yaml
 plugins:
   - type: precise-prefix-cache-scorer
@@ -114,4 +128,5 @@ schedulingProfiles:
 ## Related Documentation
 
 - [Architecture Overview](../../../../../../../docs/architecture.md)
-- [Scorer README](../../../scheduling/scorer/README.md)
+- [Precise Prefix Cache Scorer](../../../scheduling/scorer/preciseprefixcache/README.md)
+- [Context Length Aware Scorer](../../../scheduling/scorer/contextlengthaware/README.md)
