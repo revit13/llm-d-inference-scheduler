@@ -7,7 +7,7 @@ This tutorial outlines the steps needed for creating and hooking a new filter
  
 The tutorial demonstrates the coding of a new filter, which selects inference
  serving Pods based on their labels. All relevant code is contained in the
- [`bylabel`](https://github.com/llm-d/llm-d-inference-scheduler/tree/main/pkg/epp/framework/plugins/scheduling/filter/bylabel) package.
+ [`bylabel`](../pkg/epp/framework/plugins/scheduling/filter/bylabel/) package.
 
 ## Introduction to filtering
 
@@ -21,16 +21,16 @@ Plugins are used to modify llm-d-inference-scheduler's default behavior. Filter 
  in some cases it may be desirable to create and deploy custom filtering code to
  match your specific requirements.
 
-Filters implement the [`scheduling.Filter`](https://pkg.go.dev/sigs.k8s.io/gateway-api-inference-extension/pkg/epp/framework/interface/scheduling#Filter) interface and execute early in the scheduling pipeline:
+Filters implement the [`scheduling.Filter`](../pkg/epp/framework/interface/scheduling/plugins.go) interface and execute early in the scheduling pipeline:
 
 ```go
 Filter(ctx context.Context, state *scheduling.CycleState, request *scheduling.LLMRequest, endpoints []scheduling.Endpoint) []scheduling.Endpoint
 ```
 
 Key upstream types used in the signature:
-- [`scheduling.CycleState`](https://pkg.go.dev/sigs.k8s.io/gateway-api-inference-extension/pkg/epp/framework/interface/scheduling#CycleState) — thread-safe per-request state shared across plugins
-- [`scheduling.LLMRequest`](https://pkg.go.dev/sigs.k8s.io/gateway-api-inference-extension/pkg/epp/framework/interface/scheduling#LLMRequest) — parsed request with model, body, headers, and objectives
-- [`scheduling.Endpoint`](https://pkg.go.dev/sigs.k8s.io/gateway-api-inference-extension/pkg/epp/framework/interface/scheduling#Endpoint) — candidate endpoint interface with metadata and metrics
+- [`scheduling.CycleState`](../pkg/epp/framework/interface/scheduling/cycle_state.go) — thread-safe per-request state shared across plugins
+- [`scheduling.LLMRequest`](../pkg/epp/framework/interface/scheduling/types.go) — parsed request with model, body, headers, and objectives
+- [`scheduling.Endpoint`](../pkg/epp/framework/interface/scheduling/types.go) — candidate endpoint interface with metadata and metrics
 
 The `Filter` function accepts the request and a slice of candidate endpoints. Each endpoint exposes relevant inference metrics and attributes which can be used to make scheduling decisions. The function returns a (possibly smaller) slice of endpoints which satisfy the filtering criteria.
 

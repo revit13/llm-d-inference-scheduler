@@ -2,7 +2,7 @@
 
 ## Tokenizer
 
-**Type:** `tokenizer` | **Interfaces:** [`scheduling.Scorer`](../../../../interface/scheduling/plugins.go) (default) · [`requestcontrol.PrepareDataPlugin`](../../../../interface/requestcontrol/plugins.go) (build-tag)
+**Type:** `tokenizer` | **Interfaces:** [`scheduling.Scorer`](../../../../interface/scheduling/plugins.go) (default) · [`requestcontrol.DataProducer`](../../../../interface/requestcontrol/plugins.go) (build-tag)
 
 Converts incoming LLM prompts (both standard text completions and multi-modal chat messages) into token IDs for downstream filters and scorers. Communicates via Unix Domain Socket (UDS) with a tokenizer service from [`github.com/llm-d/llm-d-kv-cache`](https://github.com/llm-d/llm-d-kv-cache), which runs as a separate sidecar container alongside the EPP pod. An embedded (in-process) alternative is also available in the same package. Fail-open: tokenization errors are logged and scheduling continues without token data.
 
@@ -46,7 +46,7 @@ The plugin supports two modes selected at build time:
 
 ### Scorer Mode (default)
 
-Registered under `scorers:` in config. Always returns zero scores — its sole purpose is to make token IDs available to downstream scorers (e.g. `precise-prefix-cache-scorer`, `context-length-aware`) without those scorers needing to re-tokenize.
+Registered under `scorers:` in config. Always returns zero scores — its sole purpose is to make token IDs available to downstream scorers (e.g. [`precise-prefix-cache-scorer`](../../../scheduling/scorer/preciseprefixcache/README.md), [`context-length-aware`](../../../scheduling/scorer/contextlengthaware/README.md)) without those scorers needing to re-tokenize.
 
 ```yaml
 - type: tokenizer
@@ -104,7 +104,7 @@ schedulingProfiles:
 go build -tags gaie_tokenized_prompt
 ```
 
-Implements `requestcontrol.PrepareDataPlugin`; registered under `prepareData:` in config. Runs before filters and scorers. Use this mode when the framework version exposes `LLMRequest.TokenizedPrompt`.
+Implements `requestcontrol.DataProducer`; registered under `prepareData:` in config. Runs before filters and scorers. Use this mode when the framework version exposes `LLMRequest.TokenizedPrompt`.
 
 ```yaml
 plugins:

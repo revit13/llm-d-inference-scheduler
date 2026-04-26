@@ -12,11 +12,11 @@ Filters out pods that do not have a specific label with one of the allowed value
 
 ### Config
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `label` | _(required)_ | The name of the Kubernetes label to inspect on each pod. |
-| `validValues` | _(required unless `allowsNoLabel=true`)_ | List of acceptable label values. A pod is kept if its value matches any entry. |
-| `allowsNoLabel` | `false` | If `true`, pods that lack the label entirely are included. If `false`, they are filtered out. |
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `label` | `string` | Yes | — | The name of the Kubernetes label to inspect on each pod. |
+| `validValues` | `[]string` | Yes (unless `allowsNoLabel=true`) | — | List of acceptable label values. A pod is kept if its value matches any entry. |
+| `allowsNoLabel` | `bool` | No | `false` | If `true`, pods that lack the label entirely are included. If `false`, they are filtered out. |
 
 ### Inputs
 
@@ -50,9 +50,9 @@ Filters out pods using a standard Kubernetes label selector.
 
 ### Config
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `matchLabels` | _(required)_ | Map of `{key: value}` pairs. All pairs must match (AND logic). |
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `matchLabels` | `map[string]string` | Yes | — | Map of `{key: value}` pairs. All pairs must match (AND logic). |
 
 ### Inputs
 

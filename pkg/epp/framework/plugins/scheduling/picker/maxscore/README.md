@@ -1,8 +1,8 @@
 # Max Score Picker
 
-Selects the endpoint(s) with the highest score calculated during the scoring phase.
+**Type:** `max-score-picker` | **Implementation:** [picker.go](picker.go)
 
-It is registered as type `max-score-picker` and runs as a scheduling picker.
+Selects the endpoint(s) with the highest score calculated during the scoring phase.
 
 > Note: This plugin is auto-injected when no picker is explicitly configured — you do not need to declare it explicitly.
 
