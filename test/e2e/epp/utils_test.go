@@ -463,6 +463,42 @@ func waitForDeploymentRollout(tc *testutils.TestConfig, deploy *appsv1.Deploymen
 	ginkgo.By("Deployment rollout complete")
 }
 
+// deploymentReadyCondition is the testable core of waitForDeploymentReady.
+// It checks replica counts AND that no pod owned by the deployment is still terminating,
+// since terminating pods count toward ReadyReplicas during their graceful-shutdown window.
+func deploymentReadyCondition(tc *testutils.TestConfig, key types.NamespacedName) error {
+	current := &appsv1.Deployment{}
+	if err := tc.K8sClient.Get(tc.Context, key, current); err != nil {
+		return err
+	}
+
+	if current.Status.ReadyReplicas == 0 {
+		return errors.New("no replicas are ready yet")
+	}
+
+	if current.Status.Replicas != current.Status.ReadyReplicas {
+		return fmt.Errorf("replicas mismatch: expected %d, got %d ready",
+			current.Status.Replicas, current.Status.ReadyReplicas)
+	}
+
+	// Terminating pods retain Ready=True during graceful shutdown, inflating ReadyReplicas.
+	// Explicitly wait for them to disappear before declaring the deployment ready.
+	podList := &corev1.PodList{}
+	if err := tc.K8sClient.List(tc.Context, podList,
+		client.InNamespace(key.Namespace),
+		client.MatchingLabels(current.Spec.Selector.MatchLabels),
+	); err != nil {
+		return fmt.Errorf("listing pods: %w", err)
+	}
+	for i := range podList.Items {
+		if podList.Items[i].DeletionTimestamp != nil {
+			return fmt.Errorf("pod %s is still terminating", podList.Items[i].Name)
+		}
+	}
+
+	return nil
+}
+
 // waitForDeploymentReady waits for the Deployment to have all replicas ready.
 func waitForDeploymentReady(tc *testutils.TestConfig, deploy *appsv1.Deployment) {
 	ginkgo.By(fmt.Sprintf("waiting for Deployment %s/%s to be ready", deploy.Namespace, deploy.Name))
@@ -470,21 +506,7 @@ func waitForDeploymentReady(tc *testutils.TestConfig, deploy *appsv1.Deployment)
 	key := types.NamespacedName{Name: deploy.Name, Namespace: deploy.Namespace}
 
 	gomega.Eventually(func() error {
-		current := &appsv1.Deployment{}
-		if err := tc.K8sClient.Get(tc.Context, key, current); err != nil {
-			return err
-		}
-
-		if current.Status.Replicas != current.Status.ReadyReplicas {
-			return fmt.Errorf("replicas mismatch: expected %d, got %d ready",
-				current.Status.Replicas, current.Status.ReadyReplicas)
-		}
-
-		if current.Status.ReadyReplicas == 0 {
-			return errors.New("no replicas are ready yet")
-		}
-
-		return nil
+		return deploymentReadyCondition(tc, key)
 	}, testConfig.ReadyTimeout, testConfig.Interval).Should(gomega.Succeed())
 }
 
