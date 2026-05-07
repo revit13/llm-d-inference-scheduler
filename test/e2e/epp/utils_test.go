@@ -232,7 +232,6 @@ func verifyMetrics() {
 
 	// looks like a flaky test, will investigate separately
 	ginkgo.By("Verifying that all expected metrics are present.")
-	ginkgo.Skip("Skipping flaky metrics verification test - will investigate separately")
 
 	// Now scrape metrics from the EPP endpoint via the curl pod.
 	ginkgo.By("Scraping metrics from the EPP endpoint and verifying all backends were hit")
@@ -492,7 +491,9 @@ func deploymentReadyCondition(tc *testutils.TestConfig, key types.NamespacedName
 	}
 	for i := range podList.Items {
 		if podList.Items[i].DeletionTimestamp != nil {
-			return fmt.Errorf("pod %s is still terminating", podList.Items[i].Name)
+			err := fmt.Errorf("pod %s is still terminating", podList.Items[i].Name)
+			ginkgo.GinkgoWriter.Println(err.Error())
+			return err
 		}
 	}
 
