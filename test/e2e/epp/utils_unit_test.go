@@ -29,7 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	testutils "github.com/llm-d/llm-d-inference-scheduler/test/utils/igw"
+	igwtestutils "github.com/llm-d/llm-d-inference-scheduler/test/utils/igw"
 )
 
 // TestGenerateTraffic pins generateTraffic's outcome for a set of exec responses.
@@ -134,11 +134,12 @@ func TestDeploymentReadyCondition(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			objs := []client.Object{tc.deploy}
+			objs := make([]client.Object, 0, 1+len(tc.pods))
+			objs = append(objs, tc.deploy)
 			for _, p := range tc.pods {
 				objs = append(objs, p)
 			}
-			cfg := &testutils.TestConfig{
+			cfg := &igwtestutils.TestConfig{
 				Context:   context.Background(),
 				K8sClient: fake.NewClientBuilder().WithScheme(scheme).WithObjects(objs...).Build(),
 			}

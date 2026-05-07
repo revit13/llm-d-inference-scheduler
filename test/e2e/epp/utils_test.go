@@ -465,7 +465,7 @@ func waitForDeploymentRollout(tc *igwtestutils.TestConfig, deploy *appsv1.Deploy
 // deploymentReadyCondition is the testable core of waitForDeploymentReady.
 // It checks replica counts AND that no pod owned by the deployment is still terminating,
 // since terminating pods count toward ReadyReplicas during their graceful-shutdown window.
-func deploymentReadyCondition(tc *testutils.TestConfig, key types.NamespacedName) error {
+func deploymentReadyCondition(tc *igwtestutils.TestConfig, key types.NamespacedName) error {
 	current := &appsv1.Deployment{}
 	if err := tc.K8sClient.Get(tc.Context, key, current); err != nil {
 		return err
