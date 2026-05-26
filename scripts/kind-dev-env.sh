@@ -19,11 +19,16 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Set the host port to map to the Gateway's inbound port (30080)
 : "${GATEWAY_HOST_PORT:=30080}"
 
+# Host port mapped to the coordinator NodePort (30081). Only used by the
+# e-p-d-pools env, but mapping it unconditionally keeps the kind cluster
+# config simple.
+: "${COORDINATOR_HOST_PORT:=30081}"
+
 # Set the default IMAGE_REGISTRY if not provided
 : "${IMAGE_REGISTRY:=ghcr.io/llm-d}"
 
 # Set a default VLLM_SIMULATOR_TAG if not provided
-export VLLM_SIMULATOR_TAG="${VLLM_SIMULATOR_TAG:-v0.8.2}"
+export VLLM_SIMULATOR_TAG="${VLLM_SIMULATOR_TAG:-v0.9.0}"
 
 # VLLM_IMAGE: the vLLM container image to deploy. Can be a simulator or real vLLM image
 # (e.g., vllm/vllm-openai:v0.16.0 for production). Defaults to the simulator image.
@@ -37,10 +42,12 @@ EPP_IMAGE="${EPP_IMAGE:-${IMAGE_REGISTRY}/llm-d-router-endpoint-picker:${EPP_TAG
 export EPP_IMAGE
 
 # Set the model name to deploy.
-# When Encode disaggregation is enabled (multimodal pipeline), default to a
-# multimodal model. Otherwise use the standard text-only model.
-# Note: DISAGG_E/DISAGG_P are set later in this script, so read the raw env vars here.
-if [ "${DISAGG_E:-false}" == "true" ] || [ "${EPD_ENABLED:-false}" == "true" ] || [ "${EPD_ENABLED:-false}" == "\"true\"" ]; then
+# When Encode disaggregation or the e-p-d-pools topology is enabled
+# (multimodal pipeline), default to a multimodal model. Otherwise use the
+# standard text-only model.
+# Note: DISAGG_E/DISAGG_P/DISAGG_POOLS_TOPOLOGY are set later in this script,
+# so read the raw env vars here.
+if [ "${DISAGG_POOLS_TOPOLOGY:-false}" == "true" ] || [ "${DISAGG_E:-false}" == "true" ] || [ "${EPD_ENABLED:-false}" == "true" ] || [ "${EPD_ENABLED:-false}" == "\"true\"" ]; then
   export MODEL_NAME="${MODEL_NAME:-Qwen/Qwen3-VL-2B-Instruct}"
 else
   export MODEL_NAME="${MODEL_NAME:-TinyLlama/TinyLlama-1.1B-Chat-v1.0}"
@@ -71,7 +78,14 @@ export UDS_TOKENIZER_IMAGE
 
 # Set a default VLLM_RENDER_IMAGE if not provided (CPU-only vLLM image that
 # runs `vllm launch render` for the token-producer plugin's HTTP backend).
-export VLLM_RENDER_IMAGE="${VLLM_RENDER_IMAGE:-vllm/vllm-openai-cpu:v0.19.1}"
+export VLLM_RENDER_IMAGE="${VLLM_RENDER_IMAGE:-vllm/vllm-openai-cpu:v0.21.0}"
+
+# Coordinator image — only consumed by the e-p-d-pools env.
+export COORDINATOR_IMAGE="${COORDINATOR_IMAGE:-ghcr.io/revit13/llm-d-coordinator:dev}"
+
+# Mock downloader base images — only consumed by the e-p-d-pools env.
+export DOWNLOADER_HTTP_IMAGE="${DOWNLOADER_HTTP_IMAGE:-python:3.10-slim}"
+export DOWNLOADER_INIT_IMAGE="${DOWNLOADER_INIT_IMAGE:-busybox:1.36}"
 
 # Set the inference pool name for the deployment
 export POOL_NAME="${POOL_NAME:-${MODEL_NAME_SAFE}-inference-pool}"
@@ -94,6 +108,11 @@ export PROM_ENABLED="${PROM_ENABLED:-false}"
 #   DISAGG_E=true  DISAGG_P=true   → E/P/D
 export DISAGG_E="${DISAGG_E:-false}"
 export DISAGG_P="${DISAGG_P:-false}"
+
+# DISAGG_POOLS_TOPOLOGY=true selects the e-p-d-pools env: coordinator + render +
+# mock downloaders + one InferencePool per phase (encode/prefill/decode).
+# Standalone — does not depend on DISAGG_E/DISAGG_P, and overrides them when set.
+export DISAGG_POOLS_TOPOLOGY="${DISAGG_POOLS_TOPOLOGY:-false}"
 
 # Backward compatibility: PD_ENABLED and EPD_ENABLED are deprecated.
 # Use DISAGG_P=true and DISAGG_E=true instead.
@@ -258,6 +277,9 @@ nodes:
   - containerPort: 30080
     hostPort: ${GATEWAY_HOST_PORT}
     protocol: TCP
+  - containerPort: 30081
+    hostPort: ${COORDINATOR_HOST_PORT}
+    protocol: TCP
 ${EXTRA_PORT_MAPPINGS}
 EOF
 fi
@@ -330,7 +352,12 @@ load_image() {
     fi
 }
 
-for IMAGE in "${VLLM_IMAGE}" "${EPP_IMAGE}" "${SIDECAR_IMAGE}" "${UDS_TOKENIZER_IMAGE}"; do
+IMAGES_TO_LOAD=("${VLLM_IMAGE}" "${EPP_IMAGE}" "${SIDECAR_IMAGE}" "${UDS_TOKENIZER_IMAGE}")
+if [ "${DISAGG_POOLS_TOPOLOGY}" == "true" ]; then
+    IMAGES_TO_LOAD+=("${COORDINATOR_IMAGE}" "${DOWNLOADER_HTTP_IMAGE}" "${DOWNLOADER_INIT_IMAGE}")
+fi
+
+for IMAGE in "${IMAGES_TO_LOAD[@]}"; do
     pull_image "${IMAGE}"
     load_image "${IMAGE}"
 done
@@ -371,7 +398,12 @@ apply_crds "--enable-helm"  deploy/components/crds-istio
 
 ENV_BASE="deploy/environments/dev"
 
-if [ "${DISAGG_E}" == "true" ] && [ "${DISAGG_P}" == "true" ]; then
+if [ "${DISAGG_POOLS_TOPOLOGY}" == "true" ]; then
+  if [ "${DISAGG_E}" == "true" ] || [ "${DISAGG_P}" == "true" ]; then
+    echo "WARNING: DISAGG_POOLS_TOPOLOGY=true overrides DISAGG_E/DISAGG_P." >&2
+  fi
+  KUSTOMIZE_DIR="${ENV_BASE}/e-p-d-pools"
+elif [ "${DISAGG_E}" == "true" ] && [ "${DISAGG_P}" == "true" ]; then
   KUSTOMIZE_DIR="${ENV_BASE}/e-p-d"
 elif [ "${DISAGG_E}" == "true" ]; then
   KUSTOMIZE_DIR="${ENV_BASE}/e-pd"
@@ -389,6 +421,18 @@ kubectl --context ${KUBE_CONTEXT} delete configmap epp-config --ignore-not-found
 envsubst '$MODEL_NAME' < ${EPP_CONFIG} > ${TEMP_FILE}
 kubectl --context ${KUBE_CONTEXT} create configmap epp-config --from-file=epp-config.yaml=${TEMP_FILE}
 
+# Per-phase EPP configs for the e-p-d-pools env. Each config is consumed by
+# the matching phase EPP (encode/prefill/decode), giving each one a
+# scheduling profile scoped to its own pool's workload shape.
+if [ "${DISAGG_POOLS_TOPOLOGY}" == "true" ]; then
+  for phase in encode prefill decode; do
+    kubectl --context ${KUBE_CONTEXT} delete configmap "epp-config-${phase}" --ignore-not-found
+    envsubst '$MODEL_NAME' < "deploy/config/sim-epp-${phase}-config.yaml" > "${TEMP_FILE}"
+    kubectl --context ${KUBE_CONTEXT} create configmap "epp-config-${phase}" \
+      --from-file=epp-config.yaml="${TEMP_FILE}"
+  done
+fi
+
 # Deploy Istio base (shared infrastructure)
 kubectl kustomize --enable-helm deploy/environments/dev/base-kind-istio \
   | envsubst '${POOL_NAME} ${MODEL_NAME} ${MODEL_NAME_SAFE} ${EPP_NAME} ${EPP_IMAGE} ${VLLM_IMAGE} \
@@ -399,12 +443,15 @@ ${VLLM_REPLICA_COUNT_E} ${VLLM_REPLICA_COUNT_P} ${VLLM_REPLICA_COUNT_D} ${VLLM_D
 # Deploy scenario-specific vLLM components
 kubectl kustomize --enable-helm ${KUSTOMIZE_DIR} \
   | envsubst '${POOL_NAME} ${MODEL_NAME} ${MODEL_NAME_SAFE} ${EPP_NAME} ${EPP_IMAGE} ${VLLM_IMAGE} \
-  ${SIDECAR_IMAGE} ${UDS_TOKENIZER_IMAGE} ${TARGET_PORTS} ${NAMESPACE} \
+  ${SIDECAR_IMAGE} ${UDS_TOKENIZER_IMAGE} ${VLLM_RENDER_IMAGE} ${TARGET_PORTS} ${NAMESPACE} ${METRICS_ENDPOINT_AUTH} \
   ${VLLM_REPLICA_COUNT_E} ${VLLM_REPLICA_COUNT_P} ${VLLM_REPLICA_COUNT_D} ${VLLM_DATA_PARALLEL_SIZE} \
   ${KV_CONNECTOR_TYPE} ${EC_CONNECTOR_TYPE} ${CONNECTOR_TYPE} ${KV_CACHE_ENABLED} ${HF_TOKEN} ${VLLM_SIM_MODE} \
   ${DECODE_ROLE} ${VLLM_EXTRA_ARGS_E} ${VLLM_EXTRA_ARGS_P} ${VLLM_EXTRA_ARGS_D}' \
   | awk '
-    /^[[:space:]]*-[[:space:]]+".*"[[:space:]]*$/ {
+    # Match only flag-shaped quoted list items ("--foo" or "--foo --bar"); leave
+    # other quoted lists (e.g. RBAC apiGroups: - "") alone so legitimate
+    # empty-string entries are not silently dropped.
+    /^[[:space:]]*-[[:space:]]+"--[^"]*"[[:space:]]*$/ {
       match($0, /^[[:space:]]*/); indent = substr($0, 1, RLENGTH)
       content = $0
       sub(/^[[:space:]]*-[[:space:]]+"/, "", content)
@@ -423,6 +470,20 @@ kubectl kustomize --enable-helm ${KUSTOMIZE_DIR} \
     { print }
   ' \
   | kubectl --context ${KUBE_CONTEXT} apply -f -
+
+# In the e-p-d-pools topology, the coordinator drives the gateway with a
+# per-phase EPP-Phase header — the catch-all `${POOL_NAME}-inference-route`
+# and the single `${EPP_NAME}` EPP from base-kind-istio are both unwanted
+# noise (the three phase EPPs replace them). Strip them after apply.
+if [ "${DISAGG_POOLS_TOPOLOGY}" == "true" ]; then
+  kubectl --context ${KUBE_CONTEXT} delete httproute "${POOL_NAME}-inference-route" --ignore-not-found
+  kubectl --context ${KUBE_CONTEXT} delete deployment "${EPP_NAME}" --ignore-not-found
+  kubectl --context ${KUBE_CONTEXT} delete service "${EPP_NAME}" --ignore-not-found
+  kubectl --context ${KUBE_CONTEXT} delete inferencepool "${POOL_NAME}" --ignore-not-found
+  kubectl --context ${KUBE_CONTEXT} delete serviceaccount "${EPP_NAME}" --ignore-not-found
+  kubectl --context ${KUBE_CONTEXT} delete role "${EPP_NAME}" --ignore-not-found
+  kubectl --context ${KUBE_CONTEXT} delete rolebinding "${EPP_NAME}-binding" --ignore-not-found
+fi
 
 # ------------------------------------------------------------------------------
 # Check & Verify
@@ -472,6 +533,46 @@ if [ "${PROM_ENABLED}" == "true" ]; then
   echo "Prometheus monitoring deployed."
 fi
 
+if [ "${DISAGG_POOLS_TOPOLOGY}" == "true" ]; then
+cat <<EOF
+-----------------------------------------
+Deployment completed!
+
+* Kind Cluster Name: ${CLUSTER_NAME}
+* Kubectl Context: ${KUBE_CONTEXT}
+
+Status (DISAGG_POOLS_TOPOLOGY=true):
+
+* Coordinator drives the multimodal pipeline (replace-media-urls →
+  render → encode → prefill → decode) and exposes :8080 via the
+  llm-d-coordinator NodePort (host port ${COORDINATOR_HOST_PORT}).
+* Three phase-specific InferencePools (encode/prefill/decode) are wired
+  to per-phase EPPs via header-based HTTPRoutes (EPP-Phase: <phase>).
+* mock-downloader1/2 stand in for media URLs.
+
+Watch the coordinator logs with:
+
+  $ kubectl --context ${KUBE_CONTEXT} logs -f deployments/llm-d-coordinator -c coordinator
+
+Drive the pipeline with a two-image chat-completions request:
+
+  $ curl -s -w '\n' http://localhost:${COORDINATOR_HOST_PORT}/v1/chat/completions \\
+      -H 'Content-Type: application/json' \\
+      -d '{
+        "model": "${MODEL_NAME}",
+        "messages": [{"role":"user","content":[
+          {"type":"text","text":"Describe each image."},
+          {"type":"image_url","image_url":{"url":"http://mock-downloader1.default.svc:9000/img.jpg"}},
+          {"type":"image_url","image_url":{"url":"http://mock-downloader2.default.svc:9001/img2.jpg"}}
+        ]}],
+        "max_tokens": 256
+      }' | jq
+
+See DEVELOPMENT.md §5 (Coordinator-driven E/P/D with Pools) for details.
+
+-----------------------------------------
+EOF
+else
 cat <<EOF
 -----------------------------------------
 Deployment completed!
@@ -497,6 +598,7 @@ See DEVELOPMENT.md for additional access methods if the above fails.
 
 -----------------------------------------
 EOF
+fi
 
 if [ "${PROM_ENABLED}" == "true" ]; then
 cat <<EOF

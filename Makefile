@@ -5,6 +5,8 @@ HELM ?= $(LOCALBIN)/helm
 KUBECTL_VALIDATE ?= $(LOCALBIN)/kubectl-validate
 YQ ?= $(LOCALBIN)/yq
 
+# Centralized image registry + version tags for the dev environment.
+include Makefile.versions.mk
 # Tool checks (container runtime, kubectl, etc.) are defined in Makefile.tools.mk.
 include Makefile.tools.mk
 # Cluster (Kubernetes/OpenShift) specific targets are defined in Makefile.cluster.mk.
@@ -18,37 +20,7 @@ include Makefile.gen.mk
 TARGETOS ?= $(shell command -v go >/dev/null 2>&1 && go env GOOS || uname -s | tr '[:upper:]' '[:lower:]')
 TARGETARCH ?= $(shell command -v go >/dev/null 2>&1 && go env GOARCH || uname -m | sed 's/x86_64/amd64/; s/aarch64/arm64/; s/armv7l/arm/')
 PROJECT_NAME ?= llm-d-router
-EPP_IMAGE_NAME ?= llm-d-router-endpoint-picker
-SIDECAR_IMAGE_NAME ?= llm-d-router-disagg-sidecar
-VLLM_SIMULATOR_IMAGE_NAME ?= llm-d-inference-sim
-UDS_TOKENIZER_IMAGE_NAME ?= llm-d-uds-tokenizer
 SIDECAR_NAME ?= pd-sidecar
-BUILDER_IMAGE_NAME ?= llm-d-builder
-IMAGE_REGISTRY ?= ghcr.io/llm-d
-
-EPP_IMAGE_TAG_BASE ?= $(IMAGE_REGISTRY)/$(EPP_IMAGE_NAME)
-EPP_TAG ?= dev
-export EPP_IMAGE ?= $(EPP_IMAGE_TAG_BASE):$(EPP_TAG)
-
-SIDECAR_IMAGE_TAG_BASE ?= $(IMAGE_REGISTRY)/$(SIDECAR_IMAGE_NAME)
-SIDECAR_TAG ?= dev
-export SIDECAR_IMAGE ?= $(SIDECAR_IMAGE_TAG_BASE):$(SIDECAR_TAG)
-
-VLLM_SIMULATOR_TAG ?= v0.8.2
-VLLM_SIMULATOR_TAG_BASE ?= $(IMAGE_REGISTRY)/$(VLLM_SIMULATOR_IMAGE_NAME)
-export VLLM_IMAGE ?= $(VLLM_SIMULATOR_TAG_BASE):$(VLLM_SIMULATOR_TAG)
-
-UDS_TOKENIZER_TAG ?= dev
-UDS_TOKENIZER_TAG_BASE ?= $(IMAGE_REGISTRY)/$(UDS_TOKENIZER_IMAGE_NAME)
-export UDS_TOKENIZER_IMAGE ?= $(UDS_TOKENIZER_TAG_BASE):$(UDS_TOKENIZER_TAG)
-
-# CPU-only vLLM image that exposes `vllm launch render` for the token-producer
-# plugin's HTTP backend.
-export VLLM_RENDER_IMAGE ?= vllm/vllm-openai-cpu:v0.19.1
-
-BUILDER_TAG ?= dev
-BUILDER_TAG_BASE ?= $(IMAGE_REGISTRY)/$(BUILDER_IMAGE_NAME)
-export BUILDER_IMAGE ?= $(BUILDER_TAG_BASE):$(BUILDER_TAG)
 
 NAMESPACE ?= hc4ai-operator
 LINT_NEW_ONLY ?= false # Set to true to only lint new code, false to lint all code (default matches CI behavior)

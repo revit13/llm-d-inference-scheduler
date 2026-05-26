@@ -19,7 +19,8 @@ Documentation for developing the llm-d Router.
       - [2. Prefill/Decode (P/D) Disaggregation](#2-prefilldecode-pd-disaggregation)
       - [3. Encode/Prefill-Decode (E/PD) Disaggregation](#3-encodeprefill-decode-epd-disaggregation)
       - [4. Encode/Prefill/Decode (E/P/D) Disaggregation](#4-encodeprefilldecode-epd-disaggregation)
-      - [5. Disaggregated Setup Verification](#5-disaggregated-setup-verification)
+      - [5. Coordinator-driven E/P/D with Pools (`e-p-d-pools`)](#5-coordinator-driven-epd-with-pools-e-p-d-pools)
+      - [6. Disaggregated Setup Verification](#6-disaggregated-setup-verification)
     - [Combining Scenarios with Data Parallel and KV Cache](#combining-scenarios-with-data-parallel-and-kv-cache)
     - [Simulator vs Real vLLM](#simulator-vs-real-vllm)
       - [Deploying with Simulator (default)](#deploying-with-simulator-default)
@@ -82,7 +83,7 @@ Creates a new `kind` cluster (or reuses an existing one) in the `default` namesp
 > [!NOTE]
 > You can pre-pull external images to avoid slow downloads:
 > ```
-> docker pull ghcr.io/llm-d/llm-d-inference-sim:v0.8.2
+> docker pull ghcr.io/llm-d/llm-d-inference-sim:v0.9.0
 > docker pull ghcr.io/llm-d/llm-d-uds-tokenizer:dev
 > ```
 
@@ -291,6 +292,7 @@ controlled by two independent boolean flags:
 |---|---|---|
 | `DISAGG_E` | `false` | Deploy a separate **Encoder** pod |
 | `DISAGG_P` | `false` | Deploy a separate **Prefill** pod |
+| `DISAGG_POOLS_TOPOLOGY` | `false` | Select the `e-p-d-pools` env: coordinator + render + mock downloaders + one `InferencePool` per phase. Standalone — does not depend on `DISAGG_E`/`DISAGG_P`, and overrides them when set. |
 
 The combination of these flags determines the scenario:
 
@@ -392,7 +394,52 @@ curl -s http://localhost:30080/v1/chat/completions \
   }' | jq
 ```
 
-#### 5. Disaggregated Setup Verification
+#### 5. Coordinator-driven E/P/D with Pools (`e-p-d-pools`)
+
+A standalone topology that wires the coordinator pipeline (replace-media-urls
+→ render → encode → prefill → decode) over three phase-specific
+`InferencePool` resources. Brings up: encoder, prefill, decoder, the
+coordinator (`ghcr.io/revit13/llm-d-coordinator:dev`) carrying a CPU-only
+`vllm launch render` sidecar over loopback, and two mock multimedia
+downloaders that stand in for real public media URLs.
+
+```bash
+DISAGG_POOLS_TOPOLOGY=true make env-dev-kind
+```
+
+`DISAGG_POOLS_TOPOLOGY` is independent of `DISAGG_E`/`DISAGG_P` — setting it
+selects the `deploy/environments/dev/e-p-d-pools` env unconditionally. If the
+disagg flags are also set, the script logs a warning and `DISAGG_POOLS_TOPOLOGY`
+wins.
+
+Verify the pools wired and drive the pipeline through the coordinator:
+```bash
+kubectl get inferencepools
+# expect: pool-encode, pool-prefill, pool-decode
+
+kubectl port-forward svc/llm-d-coordinator 8080:8080 &
+curl -s http://localhost:8080/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "model": "Qwen/Qwen3-VL-2B-Instruct",
+    "messages": [{"role":"user","content":[
+      {"type":"text","text":"Describe what you see in each image."},
+      {"type":"image_url","image_url":{"url":"http://mock-downloader1.default.svc:9000/img.jpg"}},
+      {"type":"image_url","image_url":{"url":"http://mock-downloader2.default.svc:9001/img2.jpg"}}
+    ]}],
+    "max_tokens": 256
+  }' | jq
+```
+
+> **Simulator caveat:** under simulator-only, encode and prefill don't compute
+> real multimodal tokens — the test pipeline verifies wiring and routing, not
+> model correctness. Real-vLLM coverage is out of scope for this env.
+
+The Go suite `test/e2e/coordinator/` exercises three subtests against this env
+(`AllPoolsWired`, `TwoImages_ChatCompletions_OpenAI`, `TextOnly_ChatCompletions`)
+by port-forwarding the coordinator Service.
+
+#### 6. Disaggregated Setup Verification
 
 After deploying any disaggregation mode, verify with a basic request:
 
@@ -524,7 +571,7 @@ a shared PVC (`ec-cache-pvc`) for encoder embeddings transfer.
 
 | Variable | Default | Description |
 |---|---|---|
-| `VLLM_IMAGE` | `ghcr.io/llm-d/llm-d-inference-sim:v0.8.2` | vLLM container image to deploy. Can be a simulator or a real vLLM image (e.g., `vllm/vllm-openai:v0.16.0`). Defaults to the simulator image. |
+| `VLLM_IMAGE` | `ghcr.io/llm-d/llm-d-inference-sim:v0.9.0` | vLLM container image to deploy. Can be a simulator or a real vLLM image (e.g., `vllm/vllm-openai:v0.16.0`). Defaults to the simulator image. |
 | `VLLM_SIM_MODE` | `echo` | Simulator response mode. `echo` returns the input prompt as the response (useful for routing validation). `random` returns random sentences from a pre-defined bank. Only applies when using the simulator overlay. |
 
 ### Cleanup
@@ -618,7 +665,7 @@ kubectl --context kind-e2e-tests get pods
 | `VLLM_EXTRA_ARGS_E` | _(empty)_ | Additional flags for the Encoder vLLM container (e.g. `--mm-processor-kwargs={}`) |
 | `VLLM_EXTRA_ARGS_P` | _(empty)_ | Additional flags for the Prefill vLLM container (e.g. `--gpu-memory-utilization=0.9`) |
 | `VLLM_EXTRA_ARGS_D` | _(empty)_ | Additional flags for the Decode vLLM container (e.g. `--tensor-parallel-size=2`) |
-| `VLLM_IMAGE` | `ghcr.io/llm-d/llm-d-inference-sim:v0.8.2` | vLLM container image to deploy. Can be a simulator or a real vLLM image (e.g., `vllm/vllm-openai:v0.16.0`) |
+| `VLLM_IMAGE` | `ghcr.io/llm-d/llm-d-inference-sim:v0.9.0` | vLLM container image to deploy. Can be a simulator or a real vLLM image (e.g., `vllm/vllm-openai:v0.16.0`) |
 | `VLLM_SIM_MODE` | `echo` | Simulator response mode. Supported values: `echo` (returns the input prompt as the response), `random` (returns a random sentence from a pre-defined bank) |
 | `SIDECAR_IMAGE` | `ghcr.io/llm-d/llm-d-router-disagg-sidecar:dev` | Routing sidecar image loaded into the Kind cluster |
 | `UDS_TOKENIZER_IMAGE` | `ghcr.io/llm-d/llm-d-uds-tokenizer:dev` | UDS tokenizer image loaded into the Kind cluster |
