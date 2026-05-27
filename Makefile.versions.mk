@@ -33,8 +33,7 @@ export VLLM_IMAGE          ?= $(VLLM_SIMULATOR_TAG_BASE):$(VLLM_SIMULATOR_TAG)
 export UDS_TOKENIZER_IMAGE ?= $(UDS_TOKENIZER_TAG_BASE):$(UDS_TOKENIZER_TAG)
 export BUILDER_IMAGE       ?= $(BUILDER_TAG_BASE):$(BUILDER_TAG)
 
-# CPU-only vLLM image that exposes `vllm launch render` over loopback for the
-# EPP's token-producer plugin and the coordinator's render pipeline step.
+# CPU-only vLLM image that exposes `vllm launch render`
 export VLLM_RENDER_IMAGE   ?= vllm/vllm-openai-cpu:v0.21.0
 
 # Images consumed only by the e-p-d-pools env (DISAGG_POOLS_TOPOLOGY=true).

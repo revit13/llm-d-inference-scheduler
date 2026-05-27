@@ -92,6 +92,7 @@ endif
 # Add new image vars here so they are automatically passed through.
 # Should we pass ALL env vars here?
 E2E_ENV_VARS = EPP_IMAGE VLLM_IMAGE SIDECAR_IMAGE UDS_TOKENIZER_IMAGE VLLM_RENDER_IMAGE \
+               COORDINATOR_IMAGE DOWNLOADER_HTTP_IMAGE DOWNLOADER_INIT_IMAGE MODEL_NAME \
                E2E_KEEP_CLUSTER_ON_FAILURE E2E_PORT E2E_METRICS_PORT K8S_CONTEXT READY_TIMEOUT
 BUILDER_E2E_ENV_FLAGS = $(foreach v,$(E2E_ENV_VARS),$(if $($(v)),-e $(v)=$($(v))))
 ifneq ($(filter command line environment,$(origin NAMESPACE)),)
@@ -271,6 +272,12 @@ test-e2e: image-build-builder image-build image-pull ## Run end-to-end tests aga
 	$(CONTAINER_RUNTIME) run $(BUILDER_RUN_FLAGS) $(BUILDER_E2E_FLAGS) \
 		$(BUILDER_IMAGE) ./test/scripts/run_e2e.sh
 
+
+.PHONY: test-e2e-pools
+test-e2e-pools: image-build-builder image-build image-pull ## Run end-to-end tests for the e-p-d-pools env (DISAGG_POOLS_TOPOLOGY=true) against a new kind cluster
+	@printf "\033[33;1m==== Running Coordinator E2E (pools) Tests ====\033[0m\n"
+	$(CONTAINER_RUNTIME) run $(BUILDER_RUN_FLAGS) $(BUILDER_E2E_FLAGS) \
+		$(BUILDER_IMAGE) ./test/scripts/run_e2e_pools.sh
 
 .PHONY: bench-tokenizer
 bench-tokenizer: image-build-builder ## Run external tokenizer + scorer benchmark (requires kind cluster with EPP deployed)
