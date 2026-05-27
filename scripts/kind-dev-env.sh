@@ -238,9 +238,9 @@ if [ "${PROM_ENABLED}" == "true" ]; then
 fi
 
 # TARGET_PORTS is substituted directly into the `targetPorts: ${TARGET_PORTS}` field
-# in deploy/components/inference-gateway/inference-pools.yaml. Each item must be
-# indented with exactly 2 spaces to match the indentation of that field. If the
-# field is ever reindented in inference-pools.yaml, update the indentation here too.
+# in deploy/components/inference-gateway/single-pool/inference-pools.yaml. Each item
+# must be indented with exactly 2 spaces to match the indentation of that field. If
+# the field is ever reindented there, update the indentation here too.
 NEW_LINE=$'\n'
 TARGET_PORTS="${NEW_LINE}  - number: 8000"
 for ((i = 1; i < VLLM_DATA_PARALLEL_SIZE; ++i)); do
@@ -433,8 +433,15 @@ if [ "${DISAGG_POOLS_TOPOLOGY}" == "true" ]; then
   done
 fi
 
-# Deploy Istio base (shared infrastructure)
-kubectl kustomize --enable-helm deploy/environments/dev/base-kind-istio \
+# Deploy Istio base (shared infrastructure). The overlay choice is the topology
+# switch: single-pool/ ships the catch-all HTTPRoute + single EPP, epd-pools/
+# ships the three phase pools and skips them.
+if [ "${DISAGG_POOLS_TOPOLOGY}" == "true" ]; then
+  BASE_OVERLAY="deploy/environments/dev/base-kind-istio/epd-pools"
+else
+  BASE_OVERLAY="deploy/environments/dev/base-kind-istio/single-pool"
+fi
+kubectl kustomize --enable-helm "${BASE_OVERLAY}" \
   | envsubst '${POOL_NAME} ${MODEL_NAME} ${MODEL_NAME_SAFE} ${EPP_NAME} ${EPP_IMAGE} ${VLLM_IMAGE} \
   ${SIDECAR_IMAGE} ${UDS_TOKENIZER_IMAGE} ${VLLM_RENDER_IMAGE} ${TARGET_PORTS} ${NAMESPACE} ${METRICS_ENDPOINT_AUTH} \
 ${VLLM_REPLICA_COUNT_E} ${VLLM_REPLICA_COUNT_P} ${VLLM_REPLICA_COUNT_D} ${VLLM_DATA_PARALLEL_SIZE}' \
@@ -470,20 +477,6 @@ kubectl kustomize --enable-helm ${KUSTOMIZE_DIR} \
     { print }
   ' \
   | kubectl --context ${KUBE_CONTEXT} apply -f -
-
-# In the e-p-d-pools topology, the coordinator drives the gateway with a
-# per-phase EPP-Phase header — the catch-all `${POOL_NAME}-inference-route`
-# and the single `${EPP_NAME}` EPP from base-kind-istio are both unwanted
-# noise (the three phase EPPs replace them). Strip them after apply.
-if [ "${DISAGG_POOLS_TOPOLOGY}" == "true" ]; then
-  kubectl --context ${KUBE_CONTEXT} delete httproute "${POOL_NAME}-inference-route" --ignore-not-found
-  kubectl --context ${KUBE_CONTEXT} delete deployment "${EPP_NAME}" --ignore-not-found
-  kubectl --context ${KUBE_CONTEXT} delete service "${EPP_NAME}" --ignore-not-found
-  kubectl --context ${KUBE_CONTEXT} delete inferencepool "${POOL_NAME}" --ignore-not-found
-  kubectl --context ${KUBE_CONTEXT} delete serviceaccount "${EPP_NAME}" --ignore-not-found
-  kubectl --context ${KUBE_CONTEXT} delete role "${EPP_NAME}" --ignore-not-found
-  kubectl --context ${KUBE_CONTEXT} delete rolebinding "${EPP_NAME}-binding" --ignore-not-found
-fi
 
 # ------------------------------------------------------------------------------
 # Check & Verify

@@ -35,7 +35,7 @@ const (
 	// crdKustomizePath is the kustomize path for all CRDs (upstream GIE + local llm-d.ai).
 	crdKustomizePath = "../../config/crd"
 	// inferExtManifest is the manifest for the inference extension test resources.
-	inferExtManifest = "../../deploy/components/inference-gateway/inference-pools.yaml"
+	inferExtManifest = "../../deploy/components/inference-gateway/single-pool/inference-pools.yaml"
 	// simModelName is the test model name.
 	simModelName = "food-review"
 	// kvModelName is the model name used in KV tests.
@@ -43,11 +43,11 @@ const (
 	// envoyManifest is the manifest for the envoy proxy test resources.
 	envoyManifest = "../../deploy/environments/dev/e2e-infra/envoy.yaml"
 	// eppManifest is the manifest for the deployment of the EPP
-	eppManifest = "../../deploy/components/inference-gateway/deployment.yaml"
+	eppManifest = "../../deploy/components/inference-gateway/single-pool/deployment.yaml"
 	// rbacManifest is the manifest for the EPP's RBAC resources.
-	rbacManifest = "../../deploy/components/inference-gateway/rbac.yaml"
+	rbacManifest = "../../deploy/components/inference-gateway/single-pool/rbac.yaml"
 	// serviceAccountManifest is the manifest for the EPP's service account resources.
-	serviceAccountManifest = "../../deploy/components/inference-gateway/service-accounts.yaml"
+	serviceAccountManifest = "../../deploy/components/inference-gateway/single-pool/service-accounts.yaml"
 	// servicesManifest is the manifest for the EPP's service resources.
 	servicesManifest = "../../deploy/environments/dev/e2e-infra/services.yaml"
 )
