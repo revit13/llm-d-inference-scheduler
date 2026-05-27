@@ -399,7 +399,7 @@ curl -s http://localhost:30080/v1/chat/completions \
 A standalone topology that wires the coordinator pipeline (replace-media-urls
 → render → encode → prefill → decode) over three phase-specific
 `InferencePool` resources. Brings up: encoder, prefill, decoder, the
-coordinator (`ghcr.io/revit13/llm-d-coordinator:dev`) carrying a CPU-only
+coordinator carrying a CPU-only
 `vllm launch render` sidecar over loopback, and two mock multimedia
 downloaders that stand in for real public media URLs.
 
@@ -669,6 +669,21 @@ kubectl --context kind-e2e-tests get pods
 | `VLLM_SIM_MODE` | `echo` | Simulator response mode. Supported values: `echo` (returns the input prompt as the response), `random` (returns a random sentence from a pre-defined bank) |
 | `SIDECAR_IMAGE` | `ghcr.io/llm-d/llm-d-router-disagg-sidecar:dev` | Routing sidecar image loaded into the Kind cluster |
 | `UDS_TOKENIZER_IMAGE` | `ghcr.io/llm-d/llm-d-uds-tokenizer:dev` | UDS tokenizer image loaded into the Kind cluster |
+
+### End-to-End Tests — E/P/D Pools
+
+```bash
+make test-e2e-pools
+```
+
+Runs the Ginkgo suite under `test/e2e/epd_pools/` against the
+`e-p-d-pools` topology (one InferencePool per phase: encode, prefill,
+decode). Brings up a separate Kind cluster named `e2e-pools-tests`
+so it does not collide with the `e2e-tests` cluster used by
+`make test-e2e`. Honors `E2E_KEEP_CLUSTER_ON_FAILURE=true` the same
+way; export the kubeconfig with
+`kind export kubeconfig --name e2e-pools-tests` after a preserved
+failure.
 
 ### Coverage
 

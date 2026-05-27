@@ -84,8 +84,8 @@ var (
 	sideCarImage        = env.GetEnvString("SIDECAR_IMAGE", "ghcr.io/llm-d/llm-d-router-disagg-sidecar:dev", ginkgo.GinkgoLogr)
 	vllmRenderImage     = env.GetEnvString("VLLM_RENDER_IMAGE", "vllm/vllm-openai-cpu:v0.21.0", ginkgo.GinkgoLogr)
 	coordinatorImage    = env.GetEnvString("COORDINATOR_IMAGE", "ghcr.io/revit13/llm-d-coordinator:dev", ginkgo.GinkgoLogr)
-	downloaderHTTPImage = env.GetEnvString("MOCK_DOWNLOADER_HTTP_IMAGE", "python:3.10-slim", ginkgo.GinkgoLogr)
-	downloaderInitImage = env.GetEnvString("MOCK_DOWNLOADER_INIT_IMAGE", "busybox:1.36", ginkgo.GinkgoLogr)
+	mockDownloaderHTTPImage = env.GetEnvString("MOCK_DOWNLOADER_HTTP_IMAGE", "python:3.10-slim", ginkgo.GinkgoLogr)
+	mockDownloaderInitImage = env.GetEnvString("MOCK_DOWNLOADER_INIT_IMAGE", "busybox:1.36", ginkgo.GinkgoLogr)
 	modelName           = env.GetEnvString("MODEL_NAME", "Qwen/Qwen3-VL-2B-Instruct", ginkgo.GinkgoLogr)
 
 	nsName     = env.GetEnvString("NAMESPACE", "default", ginkgo.GinkgoLogr)
@@ -169,8 +169,8 @@ func setupK8sCluster() {
 		sideCarImage,
 		vllmRenderImage,
 		coordinatorImage,
-		downloaderHTTPImage,
-		downloaderInitImage,
+		mockDownloaderHTTPImage,
+		mockDownloaderInitImage,
 	} {
 		kindLoadImage(img)
 	}
@@ -238,8 +238,8 @@ func bringUpEnv() {
 		"SIDECAR_IMAGE="+sideCarImage,
 		"VLLM_RENDER_IMAGE="+vllmRenderImage,
 		"COORDINATOR_IMAGE="+coordinatorImage,
-		"MOCK_DOWNLOADER_HTTP_IMAGE="+downloaderHTTPImage,
-		"MOCK_DOWNLOADER_INIT_IMAGE="+downloaderInitImage,
+		"MOCK_DOWNLOADER_HTTP_IMAGE="+mockDownloaderHTTPImage,
+		"MOCK_DOWNLOADER_INIT_IMAGE="+mockDownloaderInitImage,
 		"CONTAINER_RUNTIME="+containerRuntime,
 	)
 	cmd.Stdout = ginkgo.GinkgoWriter
