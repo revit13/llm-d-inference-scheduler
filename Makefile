@@ -294,8 +294,8 @@ test-e2e: image-build-builder image-build image-pull ## Run end-to-end tests aga
 	$(CONTAINER_RUNTIME) run $(BUILDER_RUN_FLAGS) $(BUILDER_E2E_FLAGS) \
 		$(BUILDER_IMAGE) ./test/scripts/run_e2e.sh
 
-.PHONY: test-e2e-pools
-test-e2e-pools: image-build-builder image-build image-pull ## Run e2e tests for the e-p-d-pools topology against a new kind cluster
+.PHONY: test-e2e-epd-pools
+test-e2e-epd-pools: image-build-builder image-build image-pull ## Run e2e tests for the e-p-d-pools topology against a new kind cluster
 	@printf "\033[33;1m==== Running Coordinator E2E (separate Encode, Prefill, and Decode pools) Tests ====\033[0m\n"
 	$(CONTAINER_RUNTIME) run $(BUILDER_RUN_FLAGS) $(BUILDER_E2E_FLAGS) \
 		$(BUILDER_IMAGE) ./test/scripts/run_e2e_epd_pools.sh

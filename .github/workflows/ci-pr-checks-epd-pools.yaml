@@ -1,4 +1,4 @@
-name: CI - End-to-End validation with separate Encode, Prefill, and Decode inference pools
+name: CI - E2E tests for separate Encode, Prefill, and Decode inference pools
 
 on:
   push:
@@ -8,10 +8,6 @@ on:
   pull_request:
     branches:
       - main
-  pull_request_target:
-    branches:
-      - main
-    types: [ opened, synchronize, reopened ]
 
 permissions:
   contents: read
@@ -23,7 +19,6 @@ concurrency:
 
 jobs:
   check-changes:
-    if: github.event_name != 'pull_request_target'
     runs-on: ubuntu-latest
     outputs:
       src: ${{ steps.filter.outputs.src }}
@@ -41,13 +36,22 @@ jobs:
               - go.mod
               - scripts/**
               - 'deploy/components/inference-gateway/epd-pools/**'
-              - .github/workflows/ci-pr-checks-pools.yaml
+              - 'deploy/config/sim-epp-encode-config.yaml'
+              - 'deploy/config/sim-epp-prefill-config.yaml'
+              - 'deploy/config/sim-epp-decode-config.yaml'
+              - 'deploy/environments/dev/e-p-d/**'
+              - 'test/e2e/epd_pools/**'
+              - 'test/scripts/run_e2e_pools.sh'
+              - .github/workflows/ci-pr-checks-epd-pools.yaml
 
-  pools-e2e:
+  epd-pools-e2e:
     needs: check-changes
     if: ${{ needs.check-changes.outputs.src == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
+    env:
+      GO_MOD_CACHE_VOL: /home/runner/.cache/llm-d-gomodcache
+      GO_BUILD_CACHE_VOL: /home/runner/.cache/llm-d-gobuildcache
     steps:
       - name: Checkout source
         uses: actions/checkout@v6
@@ -71,8 +75,25 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
-          cache: true
+          cache: false
 
-      - name: Run make test-e2e-pools
+      - name: Create Go cache dirs
+        run: mkdir -p "$GO_MOD_CACHE_VOL" "$GO_BUILD_CACHE_VOL"
+
+      - name: Cache Go modules and build cache
+        uses: actions/cache@v5
+        with:
+          path: |
+            ${{ env.GO_MOD_CACHE_VOL }}
+            ${{ env.GO_BUILD_CACHE_VOL }}
+          key: go-cache-${{ runner.os }}-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-cache-${{ runner.os }}-
+
+      - name: Clean Docker system
         shell: bash
-        run: make test-e2e-pools
+        run: docker system prune -af
+
+      - name: Run make test-e2e-epd-pools
+        shell: bash
+        run: make test-e2e-epd-pools

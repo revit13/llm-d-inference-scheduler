@@ -627,7 +627,7 @@ kubectl --context kind-e2e-tests get pods
 ### End-to-End Tests — E/P/D Pools
 
 ```bash
-make test-e2e-pools
+make test-e2e-epd-pools
 ```
 
 Runs the Ginkgo suite under `test/e2e/epd_pools/` against the

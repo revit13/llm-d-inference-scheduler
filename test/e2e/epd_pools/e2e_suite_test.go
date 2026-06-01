@@ -134,14 +134,14 @@ var _ = ginkgo.ReportAfterSuite("cleanup", func(report ginkgo.Report) {
 		ginkgo.By("Keeping kind cluster " + kindClusterName + " due to suite failure (E2E_KEEP_CLUSTER_ON_FAILURE=true)")
 		return
 	}
-	/*ginkgo.By("Deleting kind cluster " + kindClusterName)
+	ginkgo.By("Deleting kind cluster " + kindClusterName)
 	command := exec.Command("kind", "delete", "cluster", "--name", kindClusterName)
 	session, err := gexec.Start(command, ginkgo.GinkgoWriter, ginkgo.GinkgoWriter)
 	if err != nil {
 		ginkgo.GinkgoLogr.Error(err, "Failed to delete kind cluster")
 		return
 	}
-	gomega.Eventually(session).WithTimeout(60 * time.Second).Should(gexec.Exit())*/
+	gomega.Eventually(session).WithTimeout(60 * time.Second).Should(gexec.Exit())
 })
 
 func setupK8sCluster() {
