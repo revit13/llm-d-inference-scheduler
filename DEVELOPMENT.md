@@ -632,17 +632,16 @@ make test-e2e-epd-pools
 
 Runs the Ginkgo suite under `test/e2e/epd_pools/` against the
 e-p-d-pools topology (one InferencePool per phase: encode, prefill,
-decode). Brings up a separate Kind cluster named `e2e-pools-tests` so
+decode). Brings up a separate Kind cluster named `e2e-epd-pools-tests` so
 it does not collide with the `e2e-tests` cluster used by
 `make test-e2e`. Tests stand in for the coordinator, POSTing per-stage
 payloads directly to a hand-rolled standalone Envoy in front of the three EPPs —
 no Istio, no Gateway/HTTPRoute CRDs.
 
-Honors `E2E_KEEP_CLUSTER=true` (always keep the cluster) and
-`E2E_KEEP_CLUSTER_ON_FAILURE=true` (keep only on failure); export the
-kubeconfig with `kind export kubeconfig --name e2e-pools-tests` after a
+Honors `E2E_KEEP_CLUSTER_ON_FAILURE=true` (keep on failure); export the
+kubeconfig with `kind export kubeconfig --name e2e-epd-pools-tests` after a
 preserved failure. Re-run the suite against an existing cluster without
-re-deploying via `K8S_CONTEXT=kind-e2e-pools-tests go test -v ./test/e2e/epd_pools/`.
+re-deploying via `K8S_CONTEXT=kind-e2e-epd-pools-tests go test -v ./test/e2e/epd_pools/`.
 
 ### Coverage
 

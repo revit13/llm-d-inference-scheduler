@@ -13,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/llm-d/llm-d-router/pkg/sidecar/proxy"
+	"github.com/llm-d/llm-d-router/test/e2e/internal/e2eutil"
 	testutils "github.com/llm-d/llm-d-router/test/utils"
 )
 
@@ -38,11 +39,11 @@ func createModelServersFromKustomize(kustomizeDir string, extra map[string]strin
 		subs[k] = v
 	}
 
-	manifests := runKustomize(kustomizeDir)
-	manifests = substituteMany(manifests, subs)
+	manifests := e2eutil.RunKustomize(kustomizeDir)
+	manifests = e2eutil.SubstituteMany(manifests, subs)
 	// Remove labels with empty values (produced when ${DECODE_ROLE} is empty)
-	manifests = removeEmptyLabels(manifests)
-	manifests = removeEmptyArgs(manifests)
+	manifests = e2eutil.RemoveEmptyLabels(manifests)
+	manifests = e2eutil.RemoveEmptyArgs(manifests)
 	// remove render sidecar if model is simulated
 	if !isModelReal(subs["${MODEL_NAME}"]) {
 		manifests = removeRenderSidecar(manifests)
@@ -140,7 +141,7 @@ func createEndPointPicker(eppConfig string) []string {
 	objects[0] = "ConfigMap/epp-config"
 
 	eppYamls := testutils.ReadYaml(eppManifest)
-	eppYamls = substituteMany(eppYamls,
+	eppYamls = e2eutil.SubstituteMany(eppYamls,
 		map[string]string{
 			"${EPP_NAME}":          "e2e-epp",
 			"${EPP_IMAGE}":         eppImage,

@@ -45,7 +45,7 @@ import (
 )
 
 const (
-	kindClusterName = "e2e-pools-tests"
+	kindClusterName = "e2e-epd-pools-tests"
 
 	defaultReadyTimeout    = 10 * time.Minute
 	defaultInterval        = time.Second * 2
@@ -69,6 +69,9 @@ const (
 
 	envoyManifest    = "testdata/envoy.yaml"
 	crdKustomizePath = "../../../config/crd"
+
+	// baseRbacManifest is the shared Role/epp-reader pulled in from base/.
+	baseRbacManifest = "../../../deploy/components/inference-gateway/base/rbac.yaml"
 )
 
 var (
@@ -78,7 +81,6 @@ var (
 	testConfig *testutils.TestConfig
 
 	keepClusterOnFailure = env.GetEnvBool("E2E_KEEP_CLUSTER_ON_FAILURE", false, ginkgo.GinkgoLogr)
-	keepCluster          = env.GetEnvBool("E2E_KEEP_CLUSTER", false, ginkgo.GinkgoLogr)
 
 	containerRuntime = env.GetEnvString("CONTAINER_RUNTIME", "docker", ginkgo.GinkgoLogr)
 	eppImage         = env.GetEnvString("EPP_IMAGE", "ghcr.io/llm-d/llm-d-router-endpoint-picker:dev", ginkgo.GinkgoLogr)
@@ -124,10 +126,6 @@ var _ = ginkgo.AfterSuite(func() {
 
 var _ = ginkgo.ReportAfterSuite("cleanup", func(report ginkgo.Report) {
 	if k8sContext != "" {
-		return
-	}
-	if keepCluster {
-		ginkgo.By("Keeping kind cluster " + kindClusterName + " (E2E_KEEP_CLUSTER=true)")
 		return
 	}
 	if keepClusterOnFailure && !report.SuiteSucceeded {

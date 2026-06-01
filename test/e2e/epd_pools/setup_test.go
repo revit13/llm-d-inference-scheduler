@@ -26,6 +26,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/llm-d/llm-d-router/test/e2e/internal/e2eutil"
 	testutils "github.com/llm-d/llm-d-router/test/utils"
 )
 
@@ -35,8 +36,11 @@ import (
 // for already having all of this in place.
 func setupInfra() {
 	ginkgo.By("Installing CRDs from " + crdKustomizePath)
-	crds := runKustomize(crdKustomizePath)
+	crds := e2eutil.RunKustomize(crdKustomizePath)
 	_ = testutils.CreateObjsFromYaml(testConfig, crds)
+
+	ginkgo.By("Applying shared Role/epp-reader from " + baseRbacManifest)
+	_ = testutils.CreateObjsFromYaml(testConfig, testutils.ReadYaml(baseRbacManifest))
 
 	ginkgo.By("Creating per-phase EPP scheduling ConfigMaps")
 	createEPPConfigMap("epp-config-encode", encodeEPPConfigPath)
@@ -54,10 +58,10 @@ func setupInfra() {
 	applyManifest(decodeEPPManifest, eppSubstitutions())
 
 	ginkgo.By("Applying per-phase vLLM workers from " + vllmEnvKustomizeDir)
-	vllmDocs := runKustomize(vllmEnvKustomizeDir)
-	vllmDocs = substituteMany(vllmDocs, vllmSubstitutions())
-	vllmDocs = removeEmptyArgs(vllmDocs)
-	vllmDocs = removeEmptyLabels(vllmDocs)
+	vllmDocs := e2eutil.RunKustomize(vllmEnvKustomizeDir)
+	vllmDocs = e2eutil.SubstituteMany(vllmDocs, vllmSubstitutions())
+	vllmDocs = e2eutil.RemoveEmptyArgs(vllmDocs)
+	vllmDocs = e2eutil.RemoveEmptyLabels(vllmDocs)
 	_ = testutils.CreateObjsFromYaml(testConfig, vllmDocs)
 
 	ginkgo.By("Applying Envoy from " + envoyManifest)
@@ -131,8 +135,8 @@ func createEPPConfigMap(name, path string) {
 
 func applyManifest(path string, subs map[string]string) []string {
 	docs := testutils.ReadYaml(path)
-	docs = substituteMany(docs, subs)
-	docs = removeEmptyArgs(docs)
+	docs = e2eutil.SubstituteMany(docs, subs)
+	docs = e2eutil.RemoveEmptyArgs(docs)
 	return testutils.CreateObjsFromYaml(testConfig, docs)
 }
 

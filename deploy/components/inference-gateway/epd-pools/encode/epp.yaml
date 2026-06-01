@@ -3,30 +3,6 @@ kind: ServiceAccount
 metadata:
   name: ${EPP_NAME}-encode
 ---
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: ${EPP_NAME}-encode
-rules:
-- apiGroups: ["inference.networking.x-k8s.io"]
-  resources: ["inferencepools", "inferenceobjectives", "inferencemodelrewrites"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["inference.networking.k8s.io"]
-  resources: ["inferencepools"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["llm-d.ai"]
-  resources: ["inferenceobjectives", "inferencemodelrewrites"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: [""]
-  resources: ["pods"]
-  verbs: ["get", "watch", "list"]
-- apiGroups: ["authentication.k8s.io"]
-  resources: ["tokenreviews"]
-  verbs: ["create"]
-- apiGroups: ["authorization.k8s.io"]
-  resources: ["subjectaccessreviews"]
-  verbs: ["create"]
----
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
@@ -37,7 +13,7 @@ subjects:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: ${EPP_NAME}-encode
+  name: epp-reader
 ---
 apiVersion: v1
 kind: Service

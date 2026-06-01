@@ -5,10 +5,10 @@ set -euo pipefail
 cleanup() {
     echo "Interrupted!"
     if [ "${E2E_KEEP_CLUSTER_ON_FAILURE:-false}" = "true" ]; then
-        echo "Keeping kind cluster 'e2e-pools-tests' (E2E_KEEP_CLUSTER_ON_FAILURE=true)"
+        echo "Keeping kind cluster 'e2e-epd-pools-tests' (E2E_KEEP_CLUSTER_ON_FAILURE=true)"
     else
-        echo "Deleting kind cluster 'e2e-pools-tests'"
-        kind delete cluster --name e2e-pools-tests 2>/dev/null || true
+        echo "Deleting kind cluster 'e2e-epd-pools-tests'"
+        kind delete cluster --name e2e-epd-pools-tests 2>/dev/null || true
     fi
     exit 130  # SIGINT (Ctrl+C)
 }
