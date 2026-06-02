@@ -95,25 +95,12 @@ func buildEncoderRequest(originalRequest map[string]any, mmItem map[string]any) 
 func mmItemURL(item map[string]any) string {
 	itemType, _ := item["type"].(string)
 	switch itemType {
-	case "image_url":
-		if m, ok := item["image_url"].(map[string]any); ok {
+	case "image_url", "audio_url", "video_url":
+		if m, ok := item[itemType].(map[string]any); ok {
 			if u, ok := m["url"].(string); ok {
 				return u
 			}
 		}
-	case "audio_url":
-		if m, ok := item["audio_url"].(map[string]any); ok {
-			if u, ok := m["url"].(string); ok {
-				return u
-			}
-		}
-	case "video_url":
-		if m, ok := item["video_url"].(map[string]any); ok {
-			if u, ok := m["url"].(string); ok {
-				return u
-			}
-		}
-	}
 	return ""
 }
 
