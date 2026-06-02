@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
+	logging "github.com/llm-d/llm-d-router/pkg/common/observability/logging"
 )
 
 // truncateLongStrings recursively shortens long string values for logging.
@@ -50,7 +51,7 @@ func (s *Server) fanoutEncoderCollect(
 ) (map[string]any, int, int, error) {
 	items := s.mmItemsForFanout(originalRequest, requestID)
 	if len(items) == 0 {
-		s.logger.V(4).Info("no multimodal items, skipping encoder", "requestID", requestID)
+		s.logger.V(logging.DEBUG).Info("no multimodal items, skipping encoder", "requestID", requestID)
 		return nil, 0, 0, nil
 	}
 
@@ -64,10 +65,12 @@ func (s *Server) fanoutEncoderCollect(
 		if err := json.Unmarshal(pw.bodyBytes(), &encoderResponse); err != nil {
 			return fmt.Errorf("failed to parse encoder response for item %d: %w", idx, err)
 		}
-		s.logger.Info("encoder response",
-			"item", idx,
-			"requestID", requestID,
-			requestFieldECTransferParams, truncateLongStrings(encoderResponse[requestFieldECTransferParams], 64))
+		if s.logger.Enabled() {
+			s.logger.Info("encoder response",
+				"item", idx,
+				"requestID", requestID,
+				requestFieldECTransferParams, truncateLongStrings(encoderResponse[requestFieldECTransferParams], 64))
+		}
 		ec, ok := encoderResponse[requestFieldECTransferParams]
 		if !ok || ec == nil {
 			s.logger.Info("warning: missing ec_transfer_params field in encoder response",
@@ -165,19 +168,21 @@ func (s *Server) handleECEPD(w http.ResponseWriter, r *http.Request, prefillEndP
 	pdRequest.Header.Add(requestHeaderRequestID, requestID)
 
 	// Don't log the full body. Inline base64 images can be MB each.
-	s.logger.V(4).Info("forwarding request to prefiller",
-		"requestID", requestID,
-		"prefiller", prefillEndPoint,
-		"bodyBytes", len(modifiedBody),
-		requestFieldECTransferParams, truncateLongStrings(completionRequest[requestFieldECTransferParams], 64))
+	if v := s.logger.V(logging.DEBUG); v.Enabled() {
+		v.Info("forwarding request to prefiller",
+			"requestID", requestID,
+			"prefiller", prefillEndPoint,
+			"bodyBytes", len(modifiedBody),
+			requestFieldECTransferParams, truncateLongStrings(completionRequest[requestFieldECTransferParams], 64))
+	}
 
 	if len(prefillEndPoint) > 0 {
-		s.logger.V(4).Info("using P/D protocol after encoder", "prefiller", prefillEndPoint)
+		s.logger.V(logging.DEBUG).Info("using P/D protocol after encoder", "prefiller", prefillEndPoint)
 		s.handlePDConnector(w, pdRequest, prefillEndPoint, APITypeChatCompletions)
 		return
 	}
 
-	s.logger.V(4).Info("no prefiller configured, going directly to decoder after encoder")
+	s.logger.V(logging.DEBUG).Info("no prefiller configured, going directly to decoder after encoder")
 	if !s.forwardDataParallel || !s.dataParallelHandler(w, pdRequest) {
 		s.decoderProxy.ServeHTTP(w, pdRequest)
 	}
