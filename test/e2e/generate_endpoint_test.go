@@ -36,9 +36,10 @@ type imageSpec struct {
 var singleImage = imageSpec{Hash: "e2e-image-hash", Offset: 1, Length: 3}
 
 // twoImages is the canonical two-image spec for fan-out coverage.
+// Distinct lengths so the two placeholder spans aren't accidentally identical.
 var twoImages = []imageSpec{
 	{Hash: "e2e-image-hash-0", Offset: 1, Length: 3},
-	{Hash: "e2e-image-hash-1", Offset: 4, Length: 3},
+	{Hash: "e2e-image-hash-1", Offset: 4, Length: 5},
 }
 
 var _ = ginkgo.Describe("Direct gateway /inference/v1/generate encode against encode-only", ginkgo.Label(extendedTestLabel), func() {
@@ -65,7 +66,7 @@ var _ = ginkgo.Describe("Direct gateway /inference/v1/generate encode against en
 			expectECTransferParams(parsed, raw)
 		}
 
-		ginkgo.By("TwoImages_Encode: per-image fan-out — every encode body returns ec_transfer_params")
+		ginkgo.By("TwoImages_Encode: per-image fan-out, every encode body returns ec_transfer_params")
 		for _, img := range twoImages {
 			resp, raw := doGenerate(encodeBody(img))
 			parsed := expectGenerateOK(resp, raw)
@@ -100,7 +101,7 @@ var _ = ginkgo.Describe("Direct gateway /inference/v1/generate prefill against p
 
 		ginkgo.By("TwoImages_Prefill: combined two-image prefill body returns kv_transfer_params")
 		{
-			tokenIDs := []int{1, 32000, 32000, 32000, 32000, 32000, 32000, 2345, 6789}
+			tokenIDs := []int{1, 32000, 32000, 32000, 32000, 32000, 32000, 32000, 32000, 2345, 6789}
 			resp, raw := doGenerate(prefillBody(tokenIDs, twoImages))
 			parsed := expectGenerateOK(resp, raw)
 			expectKVTransferParams(parsed, raw)
@@ -109,7 +110,7 @@ var _ = ginkgo.Describe("Direct gateway /inference/v1/generate prefill against p
 })
 
 // imageFeatures builds the features map that encode and prefill share:
-// mm_hashes, mm_placeholders, kwargs_data — all keyed by modality
+// mm_hashes, mm_placeholders, kwargs_data, all keyed by modality
 // ("image"). kwargs_data is a placeholder "AA==" per entry; the
 // simulator does not validate it.
 func imageFeatures(images []imageSpec) map[string]any {
