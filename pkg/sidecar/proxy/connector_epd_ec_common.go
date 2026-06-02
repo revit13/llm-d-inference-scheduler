@@ -13,6 +13,8 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+
+	logging "github.com/llm-d/llm-d-router/pkg/common/observability/logging"
 )
 
 // Multimodal content types that need encoder processing.
@@ -101,6 +103,7 @@ func mmItemURL(item map[string]any) string {
 				return u
 			}
 		}
+	}
 	return ""
 }
 
