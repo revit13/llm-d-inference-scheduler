@@ -30,7 +30,7 @@ import (
 func (s *Server) fanoutEncoderPrimer(originalRequest map[string]any, encoderHostPorts []string, requestID string) error {
 	items := s.mmItemsForFanout(originalRequest, requestID)
 	if len(items) == 0 {
-		s.logger.V(4).Info("no multimodal items, skipping encoder", "requestID", requestID)
+		s.logger.V(logging.DEBUG).Info("no multimodal items, skipping encoder", "requestID", requestID)
 		return nil
 	}
 	return s.fanoutEncoder(originalRequest, items, encoderHostPorts, requestID, nil)
