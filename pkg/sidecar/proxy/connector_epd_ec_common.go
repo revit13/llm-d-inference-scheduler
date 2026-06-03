@@ -200,7 +200,7 @@ func (s *Server) fanoutEncoder(
 				}
 			}
 
-			s.logger.V(4).Info("encoder request completed", "item", itemIdx, "requestID", requestID)
+			s.logger.V(logging.DEBUG).Info("encoder request completed", "item", itemIdx, "requestID", requestID)
 		}(mmItem, encoderHostPort, idx)
 	}
 
