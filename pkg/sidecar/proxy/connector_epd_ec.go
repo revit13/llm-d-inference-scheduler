@@ -169,8 +169,13 @@ func (s *Server) handleECEPD(w http.ResponseWriter, r *http.Request, prefillEndP
 
 	// Don't log the full body. Inline base64 images can be MB each.
 	if v := s.logger.V(logging.DEBUG); v.Enabled() {
-		v.Info("forwarding request to prefiller",
+		destination := "decoder"
+		if len(prefillEndPoint) > 0 {
+			destination = "prefiller"
+		}
+		v.Info("forwarding request after encoder",
 			"requestID", requestID,
+			"destination", destination,
 			"prefiller", prefillEndPoint,
 			"bodyBytes", len(modifiedBody),
 			requestFieldECTransferParams, truncateLongStrings(completionRequest[requestFieldECTransferParams], 64))
