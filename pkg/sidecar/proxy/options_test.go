@@ -211,7 +211,7 @@ func TestSidecarConfiguration(t *testing.T) {
 				vllmPort:                "8222",
 				dataParallelSize:        2,
 				kvConnector:             KVConnectorSGLang,
-				ecConnector:             ECExampleConnector,
+				ecConnector:             ECConnectorNixl,
 				enableSSRFProtection:    true,
 				enablePrefillerSampling: true,
 				enableTLS:               &[]string{prefillStage},
@@ -229,7 +229,7 @@ func TestSidecarConfiguration(t *testing.T) {
 				o.MaxIdleConnsPerHost = 200
 
 				o.KVConnector = KVConnectorSGLang
-				o.ECConnector = ECExampleConnector
+				o.ECConnector = ECConnectorNixl
 
 				o.EnableSSRFProtection = true
 				o.EnablePrefillerSampling = true
