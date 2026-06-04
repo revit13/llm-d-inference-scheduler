@@ -206,3 +206,60 @@ func (s *Server) fanoutEncoder(
 	}
 	return grp.Wait()
 }
+
+// runPDPipeline finalizes the post-encoder request and dispatches it to the
+// configured P/D connector or directly to the decoder. The caller has already
+// generated requestID and merged any encoder-side metadata into
+// completionRequest. On JSON-marshal failure, runPDPipeline writes the error
+// response itself (matching the existing handler pattern) and returns.
+func (s *Server) runPDPipeline(
+	w http.ResponseWriter,
+	r *http.Request,
+	completionRequest map[string]any,
+	prefillEndPoint string,
+	requestID string,
+) {
+	// Skip decode-first; the encoder has run and prefill must execute.
+	completionRequest[requestFieldCacheHitThreshold] = 0
+
+	modifiedBody, err := json.Marshal(completionRequest)
+	if err != nil {
+		if err := errorJSONInvalid(err, w); err != nil {
+			s.logger.Error(err, "failed to send error response to client")
+		}
+		return
+	}
+
+	pdRequest := cloneRequestWithBody(r.Context(), r, modifiedBody)
+	pdRequest.Header.Add(requestHeaderRequestID, requestID)
+
+	destination := "decoder"
+	if len(prefillEndPoint) > 0 {
+		destination = "prefiller"
+	}
+
+	// Don't log the full body. Inline base64 images can be MB each.
+	if v := s.logger.V(logging.DEBUG); v.Enabled() {
+		kv := []any{
+			"requestID", requestID,
+			"destination", destination,
+			"prefiller", prefillEndPoint,
+			"bodyBytes", len(modifiedBody),
+		}
+		if ec, ok := completionRequest[requestFieldECTransferParams]; ok {
+			kv = append(kv, requestFieldECTransferParams, truncateLongStrings(ec, 64))
+		}
+		v.Info("forwarding request after encoder", kv...)
+	}
+
+	if len(prefillEndPoint) > 0 {
+		s.logger.V(logging.DEBUG).Info("using P/D protocol after encoder", "prefiller", prefillEndPoint)
+		s.handlePDConnector(w, pdRequest, prefillEndPoint, APITypeChatCompletions)
+		return
+	}
+
+	s.logger.V(logging.DEBUG).Info("no prefiller configured, going directly to decoder after encoder")
+	if !s.forwardDataParallel || !s.dataParallelHandler(w, pdRequest) {
+		s.decoderProxy.ServeHTTP(w, pdRequest)
+	}
+}

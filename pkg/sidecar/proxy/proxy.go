@@ -203,7 +203,7 @@ func (c Config) String() string {
 // connector decide internally which JSON fields (if any) need special handling.
 type pdConnectorHandler func(http.ResponseWriter, *http.Request, string, APIType)
 
-type epdConnectorHandler func(http.ResponseWriter, *http.Request, string, []string)
+type ecConnectorHandler func(http.ResponseWriter, *http.Request, string, []string)
 
 // Server is the reverse proxy server
 type Server struct {
@@ -212,8 +212,8 @@ type Server struct {
 	readyCh            chan struct{} // closed once addr is set and server is listening
 	handler            http.Handler  // the handler function. either a Mux or a proxy
 	allowlistValidator *AllowlistValidator
-	handlePDConnector  pdConnectorHandler  // handles the Prefiller-Decoder connector request
-	handleEPDConnector epdConnectorHandler // handles the Encoder-Prefiller-Decoder connector request
+	handlePDConnector  pdConnectorHandler // handles the Prefiller-Decoder connector request
+	handleECConnector  ecConnectorHandler // handles the Encode disaggregation connector request.
 	prefillerURLPrefix string
 	encoderURLPrefix   string
 
@@ -303,7 +303,7 @@ func (s *Server) Clone() *Server {
 		handler:             s.handler,
 		allowlistValidator:  s.allowlistValidator,
 		handlePDConnector:   s.handlePDConnector,
-		handleEPDConnector:  s.handleEPDConnector,
+		handleECConnector:   s.handleECConnector,
 		prefillerURLPrefix:  s.prefillerURLPrefix,
 		encoderURLPrefix:    s.encoderURLPrefix,
 		prefillerProxies:    s.prefillerProxies,
@@ -373,11 +373,15 @@ func (s *Server) setECConnector() {
 
 	switch ecConnector {
 	case ECExampleConnector:
-		s.handleEPDConnector = s.handleECSharedStorage
+		s.handleECConnector = s.handleECSharedStorage
 	case ECConnectorNixl:
-		s.handleEPDConnector = s.handleECNIXL
+		s.handleECConnector = s.handleECNIXL
 	default:
-		// Unknown EC connector value, skip encoder stage
+		// Unknown EC connector value, skip encoder stage. Validate() should
+		// have rejected this earlier; reaching here means the validation was
+		// bypassed (e.g., programmatic config) and the binary degrades.
+		s.logger.Info("warning: unknown ec-connector; encoder stage will be skipped",
+			"ecConnector", ecConnector, "supported", supportedECConnectorNamesStr)
 		return
 	}
 }

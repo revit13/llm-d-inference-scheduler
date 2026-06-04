@@ -18,7 +18,6 @@ package proxy
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -68,34 +67,5 @@ func (s *Server) handleECSharedStorage(w http.ResponseWriter, r *http.Request, p
 		}
 	}
 
-	// Step 2 & 3: Handle Prefiller and Decoder stages
-	// Skip decode-first; the encoder has run and prefill must execute.
-	completionRequest[requestFieldCacheHitThreshold] = 0
-
-	// Update request body with the modified completion request
-	modifiedBody, err := json.Marshal(completionRequest)
-	if err != nil {
-		if err := errorJSONInvalid(err, w); err != nil {
-			s.logger.Error(err, "failed to send error response to client")
-		}
-		return
-	}
-
-	// Clone request with modified body and add request ID header
-	pdRequest := cloneRequestWithBody(r.Context(), r, modifiedBody)
-	pdRequest.Header.Add(requestHeaderRequestID, requestID)
-
-	// If prefiller is configured, use P/D protocol; otherwise go directly to decoder
-	if len(prefillEndPoint) > 0 {
-		s.logger.V(logging.DEBUG).Info("using P/D protocol after encoder", "prefiller", prefillEndPoint)
-		// Run the configured P/D protocol (prefill + decode)
-		// This will use whichever protocol is configured: shared-storage, nixlv2, or sglang
-		s.handlePDConnector(w, pdRequest, prefillEndPoint, APITypeChatCompletions)
-	} else {
-		s.logger.V(logging.DEBUG).Info("no prefiller configured, going directly to decoder after encoder")
-		// No prefiller, go directly to decoder (Encoder-Decoder mode)
-		if !s.forwardDataParallel || !s.dataParallelHandler(w, pdRequest) {
-			s.decoderProxy.ServeHTTP(w, pdRequest)
-		}
-	}
+	s.runPDPipeline(w, r, completionRequest, prefillEndPoint, requestID)
 }

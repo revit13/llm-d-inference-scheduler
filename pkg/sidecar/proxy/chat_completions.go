@@ -149,7 +149,7 @@ func (s *Server) disaggregatedPrefillHandler(apiType APIType) http.HandlerFunc {
 			}
 		}
 
-		if len(allowedEncoders) > 0 && s.handleEPDConnector != nil {
+		if len(allowedEncoders) > 0 && s.handleECConnector != nil {
 			s.logger.V(4).Info("encoder headers detected, using EPD protocol",
 				"encoderCount", len(allowedEncoders),
 				"encoderCandidates", len(encoderHostPorts),
@@ -159,7 +159,7 @@ func (s *Server) disaggregatedPrefillHandler(apiType APIType) http.HandlerFunc {
 				attribute.Int("llm_d.epd_proxy.encoder_count", len(allowedEncoders)),
 				attribute.Int("llm_d.epd_proxy.encoder_candidates", len(encoderHostPorts)),
 			)
-			s.handleEPDConnector(w, r, prefillHostPort, allowedEncoders)
+			s.handleECConnector(w, r, prefillHostPort, allowedEncoders)
 			return
 		}
 
