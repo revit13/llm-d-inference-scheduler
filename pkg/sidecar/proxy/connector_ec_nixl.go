@@ -154,43 +154,5 @@ func (s *Server) handleECNIXL(w http.ResponseWriter, r *http.Request, prefillEnd
 		}
 	}
 
-	// Step 2 & 3: Handle Prefiller and Decoder stages
-	// Skip decode-first; the encoder has run and prefill must execute.
-	completionRequest[requestFieldCacheHitThreshold] = 0
-
-	modifiedBody, err := json.Marshal(completionRequest)
-	if err != nil {
-		if err := errorJSONInvalid(err, w); err != nil {
-			s.logger.Error(err, "failed to send error response to client")
-		}
-		return
-	}
-
-	pdRequest := cloneRequestWithBody(r.Context(), r, modifiedBody)
-	pdRequest.Header.Add(requestHeaderRequestID, requestID)
-
-	// Don't log the full body. Inline base64 images can be MB each.
-	if v := s.logger.V(logging.DEBUG); v.Enabled() {
-		destination := "decoder"
-		if len(prefillEndPoint) > 0 {
-			destination = "prefiller"
-		}
-		v.Info("forwarding request after encoder",
-			"requestID", requestID,
-			"destination", destination,
-			"prefiller", prefillEndPoint,
-			"bodyBytes", len(modifiedBody),
-			requestFieldECTransferParams, truncateLongStrings(completionRequest[requestFieldECTransferParams], 64))
-	}
-
-	if len(prefillEndPoint) > 0 {
-		s.logger.V(logging.DEBUG).Info("using P/D protocol after encoder", "prefiller", prefillEndPoint)
-		s.handlePDConnector(w, pdRequest, prefillEndPoint, APITypeChatCompletions)
-		return
-	}
-
-	s.logger.V(logging.DEBUG).Info("no prefiller configured, going directly to decoder after encoder")
-	if !s.forwardDataParallel || !s.dataParallelHandler(w, pdRequest) {
-		s.decoderProxy.ServeHTTP(w, pdRequest)
-	}
+	s.runPDPipeline(w, r, completionRequest, prefillEndPoint, requestID)
 }
