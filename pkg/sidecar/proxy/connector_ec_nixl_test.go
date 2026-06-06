@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/http/httputil"
 	"net/url"
 	"sync"
 	"sync/atomic"
@@ -254,18 +255,23 @@ func TestHandleECEPDAllMissingDoesNotAddField(t *testing.T) {
 // when some encoder responses carry ec_transfer_params and others don't,
 // the connector attaches the flat map containing only the contributed
 // entries (missing items contribute no keys).
+//
+// The backend routes by the per-item x-request-id header
+// (format "<reqID>-enc-<idx>") set by fanoutEncoder. Item 0 returns params;
+// item 1 does not. This is deterministic regardless of goroutine scheduling.
 func TestHandleECEPDPartiallyPopulated(t *testing.T) {
-	// Alternate: first request returns params, second doesn't, etc.
-	var seq atomic.Int32
 	encoderBackend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		i := seq.Add(1) - 1
+		// Parse the item index from the trailing "-enc-<idx>" suffix.
+		reqID := r.Header.Get("x-request-id")
+		var idx int
+		_, _ = fmt.Sscanf(reqID[len(reqID)-1:], "%d", &idx)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		if i%2 == 0 {
+		if idx == 0 {
 			_, _ = fmt.Fprintf(w, `{
 				"choices": [{"message": {"content": ""}}],
-				"ec_transfer_params": {"hash-%d": {"peer_host": "10.0.0.%d"}}
-			}`, i, i)
+				"ec_transfer_params": {"hash-0": {"peer_host": "10.0.0.0"}}
+			}`)
 		} else {
 			_, _ = w.Write([]byte(`{"choices":[{"message":{"content":""}}]}`))
 		}
@@ -301,12 +307,10 @@ func TestHandleECEPDPartiallyPopulated(t *testing.T) {
 
 	ec, ok := parsed[requestFieldECTransferParams].(map[string]any)
 	assert.True(t, ok, "prefill body should carry ec_transfer_params (at least one item populated)")
-	assert.Len(t, ec, 1, "only the populated encoder response contributes a hash key")
-	for k, v := range ec {
-		entry, ok := v.(map[string]any)
-		assert.Truef(t, ok, "ec[%q] should be an object", k)
-		assert.Containsf(t, entry, "peer_host", "ec[%q] should carry transfer metadata", k)
-	}
+	assert.Len(t, ec, 1, "only item 0 contributes a hash key; item 1 has no ec_transfer_params")
+	entry, ok := ec["hash-0"].(map[string]any)
+	assert.True(t, ok, "ec[\"hash-0\"] should be an object")
+	assert.Contains(t, entry, "peer_host", "ec[\"hash-0\"] should carry transfer metadata")
 }
 
 // TestFanoutEncoderFailFastCancellation verifies the errgroup fail-fast
@@ -491,4 +495,164 @@ func TestFanoutEncoderPerErrorVisibility(t *testing.T) {
 	}
 	assert.Lenf(t, seenItems, failingItems,
 		"expected one error log per failed item; got logs for items %v (raw=%d entries)", seenItems, len(captured))
+}
+
+// TestFanoutEncoderCollectEmptyHostPorts verifies that fanoutEncoder returns
+// an error immediately when encoderHostPorts is empty, rather than panicking
+// with a division-by-zero on the round-robin index.
+func TestFanoutEncoderCollectEmptyHostPorts(t *testing.T) {
+	srv := NewProxy(Config{Port: "0"})
+	srv.logger = log.Log
+
+	req := userMessageRequest(imageURLItem("https://example.com/img.jpg"))
+	_, _, _, err := srv.fanoutEncoderCollect(context.Background(), req, nil, "test-empty-hosts")
+	assert.Error(t, err, "empty encoderHostPorts must return an error, not panic")
+}
+
+// TestHandleECNIXLEmptyEncodeEndPoints verifies that handleECNIXL skips the
+// encoder block entirely and calls runPDPipeline directly when encodeEndPoints
+// is empty. The prefill request must still reach the P/D connector unmodified
+// (no ec_transfer_params), but cache_hit_threshold must be set to 0.
+func TestHandleECNIXLEmptyEncodeEndPoints(t *testing.T) {
+	decoderBackend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer decoderBackend.Close()
+
+	decoderURL, err := url.Parse(decoderBackend.URL)
+	assert.NoError(t, err)
+	srv := NewProxy(Config{Port: "0", DecoderURL: decoderURL})
+	srv.logger = log.Log
+
+	var capturedBody []byte
+	srv.handlePDConnector = func(_ http.ResponseWriter, r *http.Request, _ string, _ APIType) {
+		buf, err := io.ReadAll(r.Body)
+		assert.NoError(t, err)
+		capturedBody = buf
+	}
+
+	reqBody, _ := json.Marshal(userMessageRequest(imageURLItem("https://example.com/img.jpg")))
+	httpReq := httptest.NewRequest(http.MethodPost, ChatCompletionsPath, io.NopCloser(bytes.NewReader(reqBody)))
+	rw := httptest.NewRecorder()
+
+	srv.handleECNIXL(rw, httpReq, "fake-prefiller:8000", nil)
+
+	if !assert.NotNil(t, capturedBody, "handlePDConnector should have been invoked") {
+		return
+	}
+	var parsed map[string]any
+	assert.NoError(t, json.Unmarshal(capturedBody, &parsed))
+	_, hasEC := parsed[requestFieldECTransferParams]
+	assert.False(t, hasEC, "ec_transfer_params must not be set when no encoders were called")
+	threshold, ok := parsed[requestFieldCacheHitThreshold]
+	assert.True(t, ok, "cache_hit_threshold must be set")
+	assert.Equal(t, float64(0), threshold)
+}
+
+// TestHandleECNIXLTextOnlyRequest verifies the text-only path: when the
+// request body has no multimodal items, fanoutEncoderCollect returns total=0
+// and the encoder block is skipped. The request still reaches the P/D
+// connector with cache_hit_threshold=0 but without ec_transfer_params.
+func TestHandleECNIXLTextOnlyRequest(t *testing.T) {
+	// Encoder backend should never be called for a text-only request.
+	encoderCalled := false
+	encoderBackend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		encoderCalled = true
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer encoderBackend.Close()
+
+	encoderURL, err := url.Parse(encoderBackend.URL)
+	assert.NoError(t, err)
+	srv := NewProxy(Config{Port: "0", DecoderURL: encoderURL})
+	srv.logger = log.Log
+
+	var capturedBody []byte
+	srv.handlePDConnector = func(_ http.ResponseWriter, r *http.Request, _ string, _ APIType) {
+		buf, err := io.ReadAll(r.Body)
+		assert.NoError(t, err)
+		capturedBody = buf
+	}
+
+	// Text-only message: no image_url / audio_url / video_url items.
+	textOnly := map[string]any{
+		"model": "test-model",
+		"messages": []any{
+			map[string]any{"role": "user", "content": "hello world"},
+		},
+	}
+	reqBody, _ := json.Marshal(textOnly)
+	httpReq := httptest.NewRequest(http.MethodPost, ChatCompletionsPath, io.NopCloser(bytes.NewReader(reqBody)))
+	rw := httptest.NewRecorder()
+
+	srv.handleECNIXL(rw, httpReq, "fake-prefiller:8000", []string{encoderURL.Host})
+
+	assert.False(t, encoderCalled, "encoder backend must not be called for a text-only request")
+	if !assert.NotNil(t, capturedBody, "handlePDConnector should have been invoked") {
+		return
+	}
+	var parsed map[string]any
+	assert.NoError(t, json.Unmarshal(capturedBody, &parsed))
+	_, hasEC := parsed[requestFieldECTransferParams]
+	assert.False(t, hasEC, "ec_transfer_params must not be set for a text-only request")
+	threshold, ok := parsed[requestFieldCacheHitThreshold]
+	assert.True(t, ok, "cache_hit_threshold must be set")
+	assert.Equal(t, float64(0), threshold)
+}
+
+// TestHandleECNIXLDecoderDirect verifies the decoder-direct branch of
+// runPDPipeline: when prefillEndPoint is empty, the request bypasses
+// handlePDConnector and goes straight to the decoder proxy. handlePDConnector
+// must not be called.
+func TestHandleECNIXLDecoderDirect(t *testing.T) {
+	var decoderBody []byte
+	decoderBackend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		buf, err := io.ReadAll(r.Body)
+		if err == nil {
+			decoderBody = buf
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"choices":[]}`))
+	}))
+	defer decoderBackend.Close()
+
+	encoderBackend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":""}}],"ec_transfer_params":{"hash-0":{"peer_host":"10.0.0.1"}}}`))
+	}))
+	defer encoderBackend.Close()
+
+	decoderURL, err := url.Parse(decoderBackend.URL)
+	assert.NoError(t, err)
+	encoderURL, err := url.Parse(encoderBackend.URL)
+	assert.NoError(t, err)
+
+	srv := NewProxy(Config{Port: "0", DecoderURL: decoderURL})
+	srv.logger = log.Log
+	srv.decoderProxy = httputil.NewSingleHostReverseProxy(decoderURL)
+
+	pdConnectorCalled := false
+	srv.handlePDConnector = func(_ http.ResponseWriter, _ *http.Request, _ string, _ APIType) {
+		pdConnectorCalled = true
+	}
+
+	reqBody, _ := json.Marshal(userMessageRequest(imageURLItem("https://example.com/img.jpg")))
+	httpReq := httptest.NewRequest(http.MethodPost, ChatCompletionsPath, io.NopCloser(bytes.NewReader(reqBody)))
+	rw := httptest.NewRecorder()
+
+	// Empty prefillEndPoint triggers the decoder-direct branch.
+	srv.handleECNIXL(rw, httpReq, "", []string{encoderURL.Host})
+
+	assert.False(t, pdConnectorCalled, "handlePDConnector must not be called when prefillEndPoint is empty")
+	if !assert.NotNil(t, decoderBody, "decoder backend should have received the request") {
+		return
+	}
+	var parsed map[string]any
+	assert.NoError(t, json.Unmarshal(decoderBody, &parsed))
+	_, hasEC := parsed[requestFieldECTransferParams]
+	assert.True(t, hasEC, "decoder-direct request should carry ec_transfer_params from encoder")
+	threshold, ok := parsed[requestFieldCacheHitThreshold]
+	assert.True(t, ok, "cache_hit_threshold must be set")
+	assert.Equal(t, float64(0), threshold)
 }

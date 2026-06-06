@@ -151,6 +151,10 @@ func (s *Server) fanoutEncoder(
 	requestID string,
 	perItem func(idx int, pw *bufferedResponseWriter) error,
 ) error {
+	if len(encoderHostPorts) == 0 {
+		return fmt.Errorf("fanoutEncoder: no encoder hostPorts provided (requestID=%s)", requestID)
+	}
+
 	s.logger.Info("processing multimodal items", "count", len(items), "requestID", requestID, "encoderHostPorts", encoderHostPorts)
 
 	grp, gctx := errgroup.WithContext(ctx)

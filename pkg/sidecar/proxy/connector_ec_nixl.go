@@ -42,9 +42,7 @@ func truncateLongStrings(v any, maxLen int) any {
 // the merged map, the count of items that contributed metadata, and the
 // total item count.
 //
-// Missing/non-object/empty ec_transfer_params is warn-and-skip (mirrors
-// NIXLv2 tolerance for missing kv_transfer_params); transport errors,
-// non-2xx, and unparsable JSON are hard-fail.
+// Missing/non-object/empty ec_transfer_params is warn-and-skip.
 func (s *Server) fanoutEncoderCollect(
 	ctx context.Context,
 	originalRequest map[string]any,
@@ -112,7 +110,7 @@ func (s *Server) fanoutEncoderCollect(
 // response's ec_transfer_params into the prefill request body, and hands
 // off to the configured P/D connector.
 func (s *Server) handleECNIXL(w http.ResponseWriter, r *http.Request, prefillEndPoint string, encodeEndPoints []string) {
-	s.logger.V(logging.DEBUG).Info("running EC-EPD protocol", "prefiller", prefillEndPoint, "encoderCount", len(encodeEndPoints))
+	s.logger.V(logging.DEBUG).Info("running EC-NIXL protocol", "prefiller", prefillEndPoint, "encoderCount", len(encodeEndPoints))
 
 	_, completionRequest, ok := s.readJSONBody(r, w)
 	if !ok {

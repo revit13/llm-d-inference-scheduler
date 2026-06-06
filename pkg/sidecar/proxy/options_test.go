@@ -215,7 +215,7 @@ func TestSidecarConfiguration(t *testing.T) {
 				vllmPort:                "8222",
 				dataParallelSize:        2,
 				kvConnector:             KVConnectorSGLang,
-				ecConnector:             ECConnectorNixl,
+				ecConnector:             ECExampleConnector,
 				enableSSRFProtection:    true,
 				enablePrefillerSampling: true,
 				enableTLS:               &[]string{prefillStage},
@@ -233,7 +233,7 @@ func TestSidecarConfiguration(t *testing.T) {
 				o.MaxIdleConnsPerHost = 200
 
 				o.KVConnector = KVConnectorSGLang
-				o.ECConnector = ECConnectorNixl
+				o.ECConnector = ECExampleConnector
 
 				o.EnableSSRFProtection = true
 				o.EnablePrefillerSampling = true
@@ -261,6 +261,18 @@ func TestSidecarConfiguration(t *testing.T) {
 
 				o.inlineConfiguration = inlineYAML
 				o.fileConfiguration = ""
+			},
+			expectedError: nil,
+		},
+		{
+			name: "flags set ECConnectorNIXL",
+			inputFlags: map[string]any{
+				ecConnector: ECConnectorNIXL,
+			},
+			expected: func(o *Options) {
+				// Complete() migrates the default connector (KVConnectorNIXLV2) into KVConnector.
+				o.KVConnector = KVConnectorNIXLV2
+				o.ECConnector = ECConnectorNIXL
 			},
 			expectedError: nil,
 		},

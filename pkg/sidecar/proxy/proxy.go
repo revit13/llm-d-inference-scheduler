@@ -75,7 +75,7 @@ const (
 	KVConnectorSharedStorage = constants.KVConnectorSharedStorage
 	KVConnectorSGLang        = constants.KVConnectorSGLang
 	ECExampleConnector       = constants.ECExampleConnector
-	ECConnectorNixl          = constants.ECConnectorNixl
+	ECConnectorNIXL          = constants.ECConnectorNIXL
 )
 
 // APIType represents the type of OpenAI API being used.
@@ -217,7 +217,7 @@ type Server struct {
 	handler            http.Handler  // the handler function. either a Mux or a proxy
 	allowlistValidator *AllowlistValidator
 	handlePDConnector  pdConnectorHandler // handles the Prefiller-Decoder connector request
-	handleECConnector  ecConnectorHandler // handles the Encode disaggregation connector request.
+	handleECConnector  ecConnectorHandler // handles the Encoder disaggregation connector request.
 	prefillerURLPrefix string
 	encoderURLPrefix   string
 
@@ -378,7 +378,7 @@ func (s *Server) setECConnector() {
 	switch ecConnector {
 	case ECExampleConnector:
 		s.handleECConnector = s.handleECSharedStorage
-	case ECConnectorNixl:
+	case ECConnectorNIXL:
 		s.handleECConnector = s.handleECNIXL
 	default:
 		// Unknown EC connector value, skip encoder stage. Validate() should
