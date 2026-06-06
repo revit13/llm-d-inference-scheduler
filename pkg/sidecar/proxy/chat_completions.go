@@ -150,14 +150,14 @@ func (s *Server) disaggregatedPrefillHandler(apiType APIType) http.HandlerFunc {
 		}
 
 		if len(allowedEncoders) > 0 && s.handleECConnector != nil {
-			s.logger.V(4).Info("encoder headers detected, using EPD protocol",
+			s.logger.V(4).Info("encoder headers detected, using EC connector",
 				"encoderCount", len(allowedEncoders),
 				"encoderCandidates", len(encoderHostPorts),
 				"hasPrefiller", len(prefillHostPort) > 0)
 			span.SetAttributes(
-				attribute.Bool("llm_d.epd_proxy.encode_disaggregation_used", true),
-				attribute.Int("llm_d.epd_proxy.encoder_count", len(allowedEncoders)),
-				attribute.Int("llm_d.epd_proxy.encoder_candidates", len(encoderHostPorts)),
+				attribute.Bool("llm_d.ec_proxy.encode_disaggregation_used", true),
+				attribute.Int("llm_d.ec_proxy.encoder_count", len(allowedEncoders)),
+				attribute.Int("llm_d.ec_proxy.encoder_candidates", len(encoderHostPorts)),
 			)
 			s.handleECConnector(w, r, prefillHostPort, allowedEncoders)
 			return
@@ -166,9 +166,9 @@ func (s *Server) disaggregatedPrefillHandler(apiType APIType) http.HandlerFunc {
 		if len(encoderHostPorts) > 0 && len(allowedEncoders) == 0 {
 			s.logger.Info("SSRF protection: all encoder targets filtered out, falling back to P/D or decoder-only")
 			span.SetAttributes(
-				attribute.Bool("llm_d.epd_proxy.encode_disaggregation_used", false),
-				attribute.Int("llm_d.epd_proxy.encoder_allowed", len(allowedEncoders)),
-				attribute.Int("llm_d.epd_proxy.encoder_candidates", len(encoderHostPorts)),
+				attribute.Bool("llm_d.ec_proxy.encode_disaggregation_used", false),
+				attribute.Int("llm_d.ec_proxy.encoder_allowed", len(allowedEncoders)),
+				attribute.Int("llm_d.ec_proxy.encoder_candidates", len(encoderHostPorts)),
 			)
 		}
 
