@@ -132,8 +132,8 @@ plugins:
 - type: max-score-picker
 - type: single-profile-handler
 requestHandler:
-  parser:
-    pluginRef: vllmhttp-parser
+  parsers:
+   - pluginRef: vllmhttp-parser
 schedulingProfiles:
 - name: default
   plugins:
