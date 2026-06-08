@@ -11,32 +11,6 @@ import (
 	logging "github.com/llm-d/llm-d-router/pkg/common/observability/logging"
 )
 
-// truncateLongStrings recursively shortens long string values for logging.
-// Field-agnostic. The connector treats ec_transfer_params as opaque.
-func truncateLongStrings(v any, maxLen int) any {
-	switch x := v.(type) {
-	case string:
-		if len(x) > maxLen {
-			return fmt.Sprintf("%s...(%d bytes)", x[:maxLen], len(x))
-		}
-		return x
-	case map[string]any:
-		out := make(map[string]any, len(x))
-		for k, vv := range x {
-			out[k] = truncateLongStrings(vv, maxLen)
-		}
-		return out
-	case []any:
-		out := make([]any, len(x))
-		for i, vv := range x {
-			out[i] = truncateLongStrings(vv, maxLen)
-		}
-		return out
-	default:
-		return v
-	}
-}
-
 // fanoutEncoderCollect fans out per-image encoder requests and merges
 // each response's ec_transfer_params into a flat hash-keyed map. Returns
 // the merged map, the count of items that contributed metadata, and the

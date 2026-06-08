@@ -26,6 +26,31 @@ var mmTypes = map[string]bool{
 	"input_audio": true,
 }
 
+// truncateLongStrings recursively shortens long string values for logging.
+func truncateLongStrings(v any, maxLen int) any {
+	switch x := v.(type) {
+	case string:
+		if len(x) > maxLen {
+			return fmt.Sprintf("%s...(%d bytes)", x[:maxLen], len(x))
+		}
+		return x
+	case map[string]any:
+		out := make(map[string]any, len(x))
+		for k, vv := range x {
+			out[k] = truncateLongStrings(vv, maxLen)
+		}
+		return out
+	case []any:
+		out := make([]any, len(x))
+		for i, vv := range x {
+			out[i] = truncateLongStrings(vv, maxLen)
+		}
+		return out
+	default:
+		return v
+	}
+}
+
 // extractMMItems extracts all multimodal items from the request messages.
 func extractMMItems(requestData map[string]any) []map[string]any {
 	var items []map[string]any
