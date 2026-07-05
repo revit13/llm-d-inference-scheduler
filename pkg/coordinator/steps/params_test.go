@@ -111,6 +111,42 @@ func TestParamDuration(t *testing.T) {
 	}
 }
 
+func TestParamString(t *testing.T) {
+	cases := []struct {
+		name    string
+		val     any
+		want    string
+		wantErr bool
+	}{
+		{name: "absent", val: nil, want: ""},
+		{name: "string", val: "nixl", want: "nixl"},
+		{name: "empty string", val: "", want: ""},
+		{name: "non-string is an error", val: 42, wantErr: true},
+		{name: "bool is an error", val: true, wantErr: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			params := map[string]any{}
+			if tc.val != nil {
+				params["k"] = tc.val
+			}
+			got, err := paramString(params, "k")
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("expected error, got value=%q", got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != tc.want {
+				t.Fatalf("value = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 // A float-formatted limit (as a YAML decoder may produce) must still apply,
 // not silently fall through to the default. This is the regression T1 covers.
 func TestNewRenderStep_FloatFormattedLimit(t *testing.T) {

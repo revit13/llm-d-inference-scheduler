@@ -53,12 +53,18 @@ func NewPrefillStep(gwClient *gateway.Client, params map[string]any) (pipeline.S
 		return nil, errors.New("prefill: gateway client is required")
 	}
 	useOpenAI := parseUseOpenAIFormat(params)
-	kvName, _ := params[ParamKVConnector].(string)
+	kvName, err := paramString(params, ParamKVConnector)
+	if err != nil {
+		return nil, fmt.Errorf("prefill: %w", err)
+	}
 	kvConn, err := kv.Build(kvName)
 	if err != nil {
 		return nil, fmt.Errorf("prefill: %w", err)
 	}
-	ecName, _ := params[ParamECConnector].(string)
+	ecName, err := paramString(params, ParamECConnector)
+	if err != nil {
+		return nil, fmt.Errorf("prefill: %w", err)
+	}
 	ecConn, err := ec.Build(ecName)
 	if err != nil {
 		return nil, fmt.Errorf("prefill: %w", err)

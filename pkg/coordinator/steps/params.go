@@ -90,3 +90,16 @@ func paramDuration(params map[string]any, key string) (value time.Duration, ok b
 		return 0, false, fmt.Errorf("%s: expected duration string, got %T", key, v)
 	}
 }
+
+// paramString reads a string step parameter. A missing key returns an empty
+// string; a key present with a non-string value is a configuration error.
+func paramString(params map[string]any, key string) (string, error) {
+	switch v := params[key].(type) {
+	case nil:
+		return "", nil
+	case string:
+		return v, nil
+	default:
+		return "", fmt.Errorf("%s: expected string, got %T", key, v)
+	}
+}

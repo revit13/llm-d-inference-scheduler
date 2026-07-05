@@ -74,7 +74,10 @@ func NewRenderStep(_ *gateway.Client, params map[string]any) (pipeline.Step, err
 		idleConnTimeout = v
 	}
 
-	address, _ := params["address"].(string)
+	address, err := paramString(params, "address")
+	if err != nil {
+		return nil, err
+	}
 
 	maxTokens := 0
 	if v, ok, err := paramInt(params, "max_total_tokens"); err != nil {

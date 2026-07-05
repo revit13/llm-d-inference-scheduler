@@ -47,7 +47,10 @@ func NewDecodeStep(gwClient *gateway.Client, params map[string]any) (pipeline.St
 		return nil, errors.New("decode: gateway client is required")
 	}
 	useOpenAI := parseUseOpenAIFormat(params)
-	kvName, _ := params[ParamKVConnector].(string)
+	kvName, err := paramString(params, ParamKVConnector)
+	if err != nil {
+		return nil, fmt.Errorf("decode: %w", err)
+	}
 	kvConn, err := kv.Build(kvName)
 	if err != nil {
 		return nil, fmt.Errorf("decode: %w", err)

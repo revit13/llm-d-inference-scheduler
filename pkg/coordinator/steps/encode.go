@@ -61,7 +61,10 @@ func NewEncodeStep(gwClient *gateway.Client, params map[string]any) (pipeline.St
 		}
 		maxParallel = v
 	}
-	ecName, _ := params[ParamECConnector].(string)
+	ecName, err := paramString(params, ParamECConnector)
+	if err != nil {
+		return nil, fmt.Errorf("encode: %w", err)
+	}
 	ecConn, err := ec.Build(ecName)
 	if err != nil {
 		return nil, fmt.Errorf("encode: %w", err)
