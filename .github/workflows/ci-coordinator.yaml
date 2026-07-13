@@ -1,7 +1,7 @@
 name: CI - Coordinator Test
 
 # Runs coordinator unit tests and e2e tests. Path filter excludes the
-# sidecar-only paths so this workflow only triggers for coordinator changes.
+# sidecar-only paths.
 on:
   push:
     branches:
