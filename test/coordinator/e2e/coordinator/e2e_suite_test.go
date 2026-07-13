@@ -115,7 +115,7 @@ var _ = ginkgo.BeforeSuite(func() {
 	if k8sContext == "" {
 		setupK8sCluster()
 	}
-	testConfig = testutils.NewTestConfig(nsName, k8sContext)
+	testConfig = testutils.NewTestConfig(k8sContext)
 	setupK8sClient()
 	setupNameSpace()
 
@@ -139,7 +139,7 @@ var _ = ginkgo.ReportAfterSuite("cleanup", func(report ginkgo.Report) {
 		return
 	}
 	if len(rendererObjects) > 0 {
-		testutils.DeleteObjects(testConfig, rendererObjects)
+		testutils.DeleteObjects(testConfig, rendererObjects, nsName)
 	}
 	for _, session := range portForwardSessions {
 		session.Terminate()

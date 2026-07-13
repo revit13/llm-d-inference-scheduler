@@ -34,7 +34,7 @@ var disruptionClient = &http.Client{Timeout: 10 * time.Second}
 // sendRawCompletion sends a completion request and returns the HTTP status code.
 func sendRawCompletion() (int, error) {
 	body := fmt.Sprintf(`{"model":"%s","prompt":"%s","max_tokens":10}`, simModelName, simplePrompt)
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:%s/v1/completions", port), strings.NewReader(body))
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:%d/v1/completions", getPort()), strings.NewReader(body))
 	if err != nil {
 		return 0, err
 	}
@@ -85,7 +85,7 @@ func eppPodReady(oldPodName string) func() bool {
 
 // completionRoutedToNamespace sends one completion and reports an error on any
 // failure or namespace-header mismatch, for use inside Eventually blocks.
-func completionRoutedToNamespace() error {
+func completionRoutedToNamespace(nsName string) error {
 	nsHdr, _, err := tryCompletion(simplePrompt, simModelName)
 	if err != nil {
 		return err
@@ -101,11 +101,13 @@ var _ = ginkgo.Describe("Disruption tests", ginkgo.Ordered, ginkgo.Label(disrupt
 		ginkgo.It("should recover and route to surviving pods", func() {
 			infPoolObjects = createInferencePool(1, true)
 
+			nsName := getNamespace()
+
 			modelServers := createModelServersDecode(2)
-			ginkgo.DeferCleanup(testutils.DeleteObjects, testConfig, modelServers)
+			ginkgo.DeferCleanup(testutils.DeleteObjects, testConfig, modelServers, nsName)
 
 			epp := createEndPointPicker(simpleConfig)
-			ginkgo.DeferCleanup(testutils.DeleteObjects, testConfig, epp)
+			ginkgo.DeferCleanup(testutils.DeleteObjects, testConfig, epp, nsName)
 
 			prefillPods, decodePods := getModelServerPods(podSelector, prefillSelector, decodeSelector)
 			gomega.Expect(prefillPods).Should(gomega.BeEmpty())
@@ -145,7 +147,7 @@ var _ = ginkgo.Describe("Disruption tests", ginkgo.Ordered, ginkgo.Label(disrupt
 			}, readyTimeout, 2*time.Second).Should(gomega.Equal(2))
 
 			ginkgo.By("Verifying requests succeed consistently after recovery")
-			gomega.Eventually(completionRoutedToNamespace, eppRecoveryTimeout, 1*time.Second).
+			gomega.Eventually(completionRoutedToNamespace, eppRecoveryTimeout, 1*time.Second).WithArguments(nsName).
 				MustPassRepeatedly(3).Should(gomega.Succeed())
 		})
 	})
@@ -154,11 +156,13 @@ var _ = ginkgo.Describe("Disruption tests", ginkgo.Ordered, ginkgo.Label(disrupt
 		ginkgo.It("should not hang and should recover routing", func() {
 			infPoolObjects = createInferencePool(1, true)
 
+			nsName := getNamespace()
+
 			modelServers := createModelServersDecode(2)
-			ginkgo.DeferCleanup(testutils.DeleteObjects, testConfig, modelServers)
+			ginkgo.DeferCleanup(testutils.DeleteObjects, testConfig, modelServers, nsName)
 
 			epp := createEndPointPicker(simpleConfig)
-			ginkgo.DeferCleanup(testutils.DeleteObjects, testConfig, epp)
+			ginkgo.DeferCleanup(testutils.DeleteObjects, testConfig, epp, nsName)
 
 			prefillPods, decodePods := getModelServerPods(podSelector, prefillSelector, decodeSelector)
 			gomega.Expect(prefillPods).Should(gomega.BeEmpty())
@@ -195,7 +199,7 @@ var _ = ginkgo.Describe("Disruption tests", ginkgo.Ordered, ginkgo.Label(disrupt
 			}, readyTimeout, 2*time.Second).Should(gomega.Equal(2))
 
 			ginkgo.By("Verifying requests succeed consistently after recovery")
-			gomega.Eventually(completionRoutedToNamespace, eppRecoveryTimeout, 1*time.Second).
+			gomega.Eventually(completionRoutedToNamespace, eppRecoveryTimeout, 1*time.Second).WithArguments(nsName).
 				MustPassRepeatedly(3).Should(gomega.Succeed())
 		})
 	})
@@ -204,11 +208,13 @@ var _ = ginkgo.Describe("Disruption tests", ginkgo.Ordered, ginkgo.Label(disrupt
 		ginkgo.It("should return 503 to the client", func() {
 			infPoolObjects = createInferencePool(1, true)
 
+			nsName := getNamespace()
+
 			modelServers := createModelServersDecode(1)
-			ginkgo.DeferCleanup(testutils.DeleteObjects, testConfig, modelServers)
+			ginkgo.DeferCleanup(testutils.DeleteObjects, testConfig, modelServers, nsName)
 
 			epp := createEndPointPicker(simpleConfig)
-			ginkgo.DeferCleanup(testutils.DeleteObjects, testConfig, epp)
+			ginkgo.DeferCleanup(testutils.DeleteObjects, testConfig, epp, nsName)
 
 			_, decodePods := getModelServerPods(podSelector, prefillSelector, decodeSelector)
 			gomega.Expect(decodePods).Should(gomega.HaveLen(1))
@@ -218,7 +224,7 @@ var _ = ginkgo.Describe("Disruption tests", ginkgo.Ordered, ginkgo.Label(disrupt
 			gomega.Expect(nsHdr).Should(gomega.Equal(nsName))
 
 			ginkgo.By("Scaling deployment to zero")
-			scaleDeployment(modelServers, -1)
+			scaleDeployment(nsName, modelServers, -1)
 
 			ginkgo.By("Waiting for all pods to be removed")
 			gomega.Eventually(func() int {
@@ -236,7 +242,7 @@ var _ = ginkgo.Describe("Disruption tests", ginkgo.Ordered, ginkgo.Label(disrupt
 			}, trafficProbeTimeout, 500*time.Millisecond).Should(gomega.Equal(http.StatusServiceUnavailable))
 
 			ginkgo.By("Scaling deployment back up")
-			scaleDeployment(modelServers, 1)
+			scaleDeployment(nsName, modelServers, 1)
 
 			ginkgo.By("Verifying requests succeed after recovery")
 			gomega.Eventually(func() string {
@@ -250,15 +256,17 @@ var _ = ginkgo.Describe("Disruption tests", ginkgo.Ordered, ginkgo.Label(disrupt
 		ginkgo.It("should recover and resume routing after restart", func() {
 			infPoolObjects = createInferencePool(1, true)
 
+			nsName := getNamespace()
+
 			modelServers := createModelServersDecode(1)
-			ginkgo.DeferCleanup(testutils.DeleteObjects, testConfig, modelServers)
+			ginkgo.DeferCleanup(testutils.DeleteObjects, testConfig, modelServers, nsName)
 
 			epp := createEndPointPicker(simpleConfig)
-			ginkgo.DeferCleanup(testutils.DeleteObjects, testConfig, epp)
+			ginkgo.DeferCleanup(testutils.DeleteObjects, testConfig, epp, nsName)
 
 			ginkgo.By("Verifying requests succeed before EPP disruption")
 			nsHdr, _, _ := runCompletion(simplePrompt, simModelName)
-			gomega.Expect(nsHdr).Should(gomega.Equal(nsName))
+			gomega.Expect(nsHdr).Should(gomega.Equal(getNamespace()))
 
 			ginkgo.By("Finding EPP pod")
 			eppPods := getPods(map[string]string{"app": "e2e-epp"})
@@ -298,16 +306,17 @@ var _ = ginkgo.Describe("Disruption tests", ginkgo.Ordered, ginkgo.Label(disrupt
 	ginkgo.When("Traffic is flowing during scale-to-zero and back", func() {
 		ginkgo.It("should return 503s when empty and recover when scaled back", func() {
 			infPoolObjects = createInferencePool(1, true)
+			nsName := getNamespace()
 
 			modelServers := createModelServersDecode(1)
-			ginkgo.DeferCleanup(testutils.DeleteObjects, testConfig, modelServers)
+			ginkgo.DeferCleanup(testutils.DeleteObjects, testConfig, modelServers, nsName)
 
 			epp := createEndPointPicker(simpleConfig)
-			ginkgo.DeferCleanup(testutils.DeleteObjects, testConfig, epp)
+			ginkgo.DeferCleanup(testutils.DeleteObjects, testConfig, epp, nsName)
 
 			ginkgo.By("Verifying requests succeed before disruption")
 			nsHdr, _, _ := runCompletion(simplePrompt, simModelName)
-			gomega.Expect(nsHdr).Should(gomega.Equal(nsName))
+			gomega.Expect(nsHdr).Should(gomega.Equal(getNamespace()))
 
 			ginkgo.By("Starting background traffic")
 			ctx, cancel := context.WithCancel(context.Background())
@@ -319,7 +328,7 @@ var _ = ginkgo.Describe("Disruption tests", ginkgo.Ordered, ginkgo.Label(disrupt
 			}()
 
 			ginkgo.By("Scaling to zero")
-			scaleDeployment(modelServers, -1)
+			scaleDeployment(nsName, modelServers, -1)
 
 			ginkgo.By("Waiting for all pods to be removed")
 			gomega.Eventually(func() int {
@@ -331,7 +340,7 @@ var _ = ginkgo.Describe("Disruption tests", ginkgo.Ordered, ginkgo.Label(disrupt
 			gomega.Eventually(tc.failures, trafficProbeTimeout, 500*time.Millisecond).Should(gomega.BeNumerically(">", 0))
 
 			ginkgo.By("Scaling back to 1")
-			scaleDeployment(modelServers, 1)
+			scaleDeployment(nsName, modelServers, 1)
 
 			ginkgo.By("Waiting for traffic to observe recovery")
 			successBaseline := tc.successes()
@@ -351,7 +360,7 @@ var _ = ginkgo.Describe("Disruption tests", ginkgo.Ordered, ginkgo.Label(disrupt
 func sendStreamingCompletion(connected chan<- string) error {
 	longPrompt := strings.Repeat("This is a longer prompt to keep the stream open. ", 20)
 	body := fmt.Sprintf(`{"model":"%s","prompt":"%s","max_tokens":100,"stream":true}`, simModelName, longPrompt)
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:%s/v1/completions", port), strings.NewReader(body))
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:%d/v1/completions", getPort()), strings.NewReader(body))
 	if err != nil {
 		connected <- ""
 		return err
@@ -418,7 +427,7 @@ func deletePodByName(podName string, gracePeriodSeconds int64) {
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      podName,
-			Namespace: nsName,
+			Namespace: getNamespace(),
 		},
 	}
 	opts := &client.DeleteOptions{
