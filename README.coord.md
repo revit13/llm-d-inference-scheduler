@@ -323,7 +323,6 @@ kubectl --context kind-e2e-coordinator-tests get pods
 | Variable | Default | Description |
 |---|---|---|
 | `E2E_KEEP_CLUSTER_ON_FAILURE` | `false` | Preserve the Kind cluster when the suite fails |
-| `COORDINATOR_PORT` | `30081` | Host port mapped to the coordinator NodePort |
 | `E2E_GATEWAY_PORT` | `30080` | Host port mapped to the gateway NodePort |
 | `E2E_PRINT_COORDINATOR_LOGS` | `false` | Print coordinator pod logs during the run |
 | `CONTAINER_RUNTIME` | `docker` | Container runtime used to load images into Kind (`docker` or `podman`) |

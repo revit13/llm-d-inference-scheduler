@@ -50,7 +50,6 @@ const (
 
 	defaultReadyTimeout    = 10 * time.Minute
 	defaultInterval        = time.Second * 2
-	defaultCoordinatorPort = 30081
 	defaultGatewayHostPort = 30080
 
 	poolNameBase = "qwen3-vl-2b-instruct-inference-pool"
@@ -75,8 +74,7 @@ const (
 )
 
 var (
-	baseCoordinatorPort = env.GetEnvInt("COORDINATOR_PORT", defaultCoordinatorPort, ginkgo.GinkgoLogr)
-	baseGatewayPort     = env.GetEnvInt("E2E_GATEWAY_PORT", defaultGatewayHostPort, ginkgo.GinkgoLogr)
+	baseGatewayPort = env.GetEnvInt("E2E_GATEWAY_PORT", defaultGatewayHostPort, ginkgo.GinkgoLogr)
 
 	testConfig *testutils.TestConfig
 
@@ -187,7 +185,6 @@ func setupK8sCluster() {
 	// extraPortMappings is substituted into `extraPortMappings: ${EXTRA_PORT_MAPPINGS}` in the Kind
 	// cluster configuration below; keep its indentation in sync with testutils.BuildExtraPortMappings.
 	extraPortMappings := testutils.BuildExtraPortMappings(numProcesses,
-		[2]int{defaultCoordinatorPort, baseCoordinatorPort},
 		[2]int{defaultGatewayHostPort, baseGatewayPort},
 	)
 
@@ -254,11 +251,6 @@ func setupK8sClient() {
 	k8slog.SetLogger(ginkgo.GinkgoLogr)
 }
 
-// getCoordinatorPort returns the coordinator's NodePort for this process. See testutils.ProcessPort.
-func getCoordinatorPort() int {
-	return testutils.ProcessPort(baseCoordinatorPort)
-}
-
 // getGatewayPort returns the envoy gateway's NodePort for this process. See testutils.ProcessPort.
 func getGatewayPort() int {
 	return testutils.ProcessPort(baseGatewayPort)
@@ -269,10 +261,6 @@ func getGatewayPort() int {
 // the tests running in it. See testutils.Namespace.
 func getNamespace() string {
 	return testutils.Namespace(baseNsName, numProcesses)
-}
-
-func coordinatorBaseURL() string {
-	return testutils.LocalhostURL(getCoordinatorPort())
 }
 
 func gatewayBaseURL() string {

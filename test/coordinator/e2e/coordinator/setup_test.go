@@ -154,8 +154,8 @@ func createModelServers(encodeReplicas, prefillReplicas, decodeReplicas int) []s
 }
 
 // createCoordinator builds the coordinator ConfigMap from the given pipeline
-// config, deploys the coordinator component (Deployment + Service + SA), starts a
-// port-forward when running against an existing cluster, and waits for readiness.
+// config, deploys the coordinator component (Deployment + Service + SA), and
+// waits for readiness.
 func createCoordinator(config string) []string {
 	nsName := getNamespace()
 	coordinatorYAML := e2eutil.SubstituteMany([]string{config}, map[string]string{
@@ -183,27 +183,14 @@ func createCoordinator(config string) []string {
 	objects = append(objects, testutils.CreateObjsFromYaml(testConfig, docs, nsName)...)
 
 	podsInDeploymentsReady(objects)
-	if k8sContext != "" {
-		startPortForward("deployment/llm-d-coordinator", strconv.Itoa(getCoordinatorPort()), "8080")
-	}
 	waitForCoordinatorReady()
 	return objects
 }
 
-// waitForCoordinatorReady polls /readyz on the coordinator until HTTP 200 via
-// two paths: the direct NodePort and the Envoy gateway's default route. Both
-// must succeed before the test sends inference requests.
-//
-// The NodePort check confirms the coordinator pod is up. The gateway check
-// confirms Envoy's STRICT_DNS coordinator cluster has resolved, which can lag
-// because the coordinator Service is created per-test while Envoy starts once
-// at suite setup.
+// waitForCoordinatorReady polls /readyz through Envoy until it returns 200,
+// catching Envoy's STRICT_DNS resolution lagging behind the per-test Service
+// (podsInDeploymentsReady already confirms the coordinator pod itself is ready).
 func waitForCoordinatorReady() {
-	ginkgo.By("Waiting for coordinator to be ready (direct)")
-	gomega.Eventually(func() bool {
-		return pollReady(coordinatorBaseURL() + "/readyz")
-	}, readyTimeout, defaultInterval).Should(gomega.BeTrue(), "coordinator should be ready within the ready timeout")
-
 	ginkgo.By("Waiting for coordinator to be reachable via gateway")
 	gomega.Eventually(func() bool {
 		return pollReady(gatewayBaseURL() + "/readyz")
