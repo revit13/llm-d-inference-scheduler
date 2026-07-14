@@ -186,9 +186,6 @@ plugins:
   parameters:
     deciders:
       prefill: prefix-based-pd-decider
-requestHandler:
-  parsers:
-   - pluginRef: vllmhttp-parser
 schedulingProfiles:
 - name: prefill
   plugins:
