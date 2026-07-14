@@ -55,6 +55,10 @@ const (
 	// servicesManifest is the manifest for the EPP's service resources.
 	servicesManifest = "../../deploy/environments/dev/e2e-infra/services.yaml"
 
+	// defaultPort is the envoy gateway's NodePort.
+	defaultPort        = 30080
+	defaultMetricsPort = 32090
+
 	// CI shards scheduler e2e specs with label filters.
 	extendedTestLabel      = "Extended"
 	disruptiveTestLabel    = "Disruptive"
@@ -65,8 +69,8 @@ const (
 )
 
 var (
-	basePort        = env.GetEnvInt("E2E_PORT", 30080, ginkgo.GinkgoLogr)
-	baseMetricsPort = env.GetEnvInt("E2E_METRICS_PORT", 32090, ginkgo.GinkgoLogr)
+	basePort        = env.GetEnvInt("E2E_PORT", defaultPort, ginkgo.GinkgoLogr)
+	baseMetricsPort = env.GetEnvInt("E2E_METRICS_PORT", defaultMetricsPort, ginkgo.GinkgoLogr)
 
 	testConfig *testutils.TestConfig
 
@@ -201,8 +205,8 @@ func setupK8sCluster() {
 	// extraPortMappings is substituted into `extraPortMappings: ${EXTRA_PORT_MAPPINGS}` in the Kind
 	// cluster configuration below; keep its indentation in sync with testutils.BuildExtraPortMappings.
 	extraPortMappings := testutils.BuildExtraPortMappings(numProcesses,
-		[2]int{30080, basePort},
-		[2]int{32090, baseMetricsPort},
+		[2]int{defaultPort, basePort},
+		[2]int{defaultMetricsPort, baseMetricsPort},
 	)
 
 	command := exec.Command("kind", "create", "cluster", "--name", kindClusterName, "--config", "-")

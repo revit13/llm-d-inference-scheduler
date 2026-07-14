@@ -271,12 +271,10 @@ func getNamespace() string {
 	return testutils.Namespace(baseNsName, numProcesses)
 }
 
-// coordinatorBaseURL returns the coordinator's direct base URL for this process.
 func coordinatorBaseURL() string {
 	return testutils.LocalhostURL(getCoordinatorPort())
 }
 
-// gatewayBaseURL returns the gateway's base URL for this process.
 func gatewayBaseURL() string {
 	return testutils.LocalhostURL(getGatewayPort())
 }

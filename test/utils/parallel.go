@@ -24,12 +24,18 @@ import (
 	"github.com/onsi/ginkgo/v2"
 )
 
+// processPortOffset is the gap between consecutive parallel processes' ports,
+// shared by ProcessPort (NodePorts) and BuildExtraPortMappings (Kind's
+// containerPort/hostPort mappings) so a process's actual exposed port always
+// matches the port it computes and dials.
+const processPortOffset = 100
+
 // ProcessPort returns the NodePort for the current Ginkgo parallel process for
 // a service whose first process uses basePort. When tests run in parallel,
-// each process gets its own NodePort of the form basePort + 100 * (the
-// process number minus one), so process one gets exactly basePort.
+// each process gets its own NodePort of the form basePort + processPortOffset
+// * (the process number minus one), so process one gets exactly basePort.
 func ProcessPort(basePort int) int {
-	return basePort + 100*(ginkgo.GinkgoParallelProcess()-1)
+	return basePort + processPortOffset*(ginkgo.GinkgoParallelProcess()-1)
 }
 
 // NamespaceForProcess returns the namespace assigned to the given Ginkgo
@@ -57,7 +63,6 @@ func DefaultNsName(numProcesses int, parallelName string) string {
 	return parallelName
 }
 
-// LocalhostURL returns a base URL for the given NodePort on localhost.
 func LocalhostURL(port int) string {
 	return "http://localhost:" + strconv.Itoa(port)
 }
@@ -82,7 +87,7 @@ func RequireParallelProcessesMatch(numProcesses int) {
 func BuildExtraPortMappings(numProcesses int, portPairs ...[2]int) string {
 	var b strings.Builder
 	for idx := range numProcesses {
-		inc := idx * 100
+		inc := idx * processPortOffset
 		for _, pair := range portPairs {
 			fmt.Fprintf(&b, "\n  - containerPort: %d", pair[0]+inc)
 			fmt.Fprintf(&b, "\n    hostPort: %d", pair[1]+inc)
