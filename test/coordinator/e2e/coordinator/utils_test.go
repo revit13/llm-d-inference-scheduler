@@ -119,7 +119,13 @@ func dumpPodsAndLogs(nsName string) {
 func dumpContainerLogs(nsName, podName, containerName string) {
 	ginkgo.GinkgoWriter.Printf("--- Logs: %s/%s ---\n", podName, containerName)
 
-	req := testConfig.KubeCli.CoreV1().Pods(nsName).GetLogs(podName, &corev1.PodLogOptions{Container: containerName})
+	tailLines := int64(200)
+	limitBytes := int64(1 << 20) // 1MiB
+	req := testConfig.KubeCli.CoreV1().Pods(nsName).GetLogs(podName, &corev1.PodLogOptions{
+		Container:  containerName,
+		TailLines:  &tailLines,
+		LimitBytes: &limitBytes,
+	})
 	stream, err := req.Stream(testConfig.Context)
 	if err != nil {
 		ginkgo.GinkgoWriter.Printf("(failed to fetch logs: %v)\n", err)
