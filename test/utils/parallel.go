@@ -18,6 +18,7 @@ package utils
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/onsi/ginkgo/v2"
@@ -58,7 +59,7 @@ func DefaultNsName(numProcesses int, parallelName string) string {
 
 // LocalhostURL returns a base URL for the given NodePort on localhost.
 func LocalhostURL(port int) string {
-	return "http://localhost:" + fmt.Sprint(port)
+	return "http://localhost:" + strconv.Itoa(port)
 }
 
 // RequireParallelProcessesMatch fails the suite unless numProcesses (from the
