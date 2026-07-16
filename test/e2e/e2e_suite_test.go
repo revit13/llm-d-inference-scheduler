@@ -164,7 +164,7 @@ var _ = ginkgo.AfterSuite(func() {
 var _ = ginkgo.ReportAfterSuite("cleanup", func(report ginkgo.Report) {
 	if !report.SuiteSucceeded {
 		for idx := range numProcesses {
-			dumpPodsAndLogs(testutils.NamespaceForProcess(baseNsName, numProcesses, idx+1))
+			testutils.DumpPodsAndLogs(testConfig, testutils.NamespaceForProcess(baseNsName, numProcesses, idx+1))
 		}
 	}
 
