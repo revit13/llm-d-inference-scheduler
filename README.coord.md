@@ -30,7 +30,24 @@ A Go service that orchestrates multi-phase LLM inference pipelines (Encode/Prefi
 ## Architecture
 
 ```
-Client -> Inference Gateway -> Coordinator -> Inference Gateway -> EPP -> vLLM Workers
++--------+
+| Client |
++--------+
+    |
+    v
++-------------------+       +-------------+
+| Inference Gateway | <---> | Coordinator |
++-------------------+       +-------------+
+    |
+    v
++-----+
+| EPP |
++-----+
+    |
+    v
++--------------+
+| vLLM Workers |
++--------------+
 ```
 
 The Coordinator processes each request through a configurable pipeline of steps:
