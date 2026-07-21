@@ -187,14 +187,23 @@ func createCoordinator(config string) []string {
 	return objects
 }
 
-// waitForCoordinatorReady polls /readyz through Envoy until it returns 200,
-// catching Envoy's STRICT_DNS resolution lagging behind the per-test Service
-// (podsInDeploymentsReady already confirms the coordinator pod itself is ready).
+// waitForCoordinatorReady polls /readyz through Envoy and requires several
+// consecutive successes: right after the per-spec coordinator is recreated, a
+// single probe can succeed while Envoy is still converging on the new endpoint,
+// so the next request would hit a stale one and hang.
 func waitForCoordinatorReady() {
 	ginkgo.By("Waiting for coordinator to be reachable via gateway")
+	const requiredConsecutive = 3
+	consecutive := 0
 	gomega.Eventually(func() bool {
-		return pollReady(gatewayBaseURL() + "/readyz")
-	}, readyTimeout, defaultInterval).Should(gomega.BeTrue(), "coordinator should be reachable via gateway within the ready timeout")
+		if !pollReady(gatewayBaseURL() + "/readyz") {
+			consecutive = 0
+			return false
+		}
+		consecutive++
+		return consecutive >= requiredConsecutive
+	}, readyTimeout, defaultInterval).Should(gomega.BeTrue(),
+		"coordinator should be reachable via gateway within the ready timeout")
 }
 
 // pollReady reports whether a GET on url returns HTTP 200 within the client timeout.

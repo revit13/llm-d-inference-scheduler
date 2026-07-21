@@ -31,16 +31,7 @@ import (
 	testutils "github.com/llm-d/llm-d-router/test/utils"
 )
 
-const (
-	// requestTimeout bounds text-only chat completions (prefill, decode).
-	requestTimeout = 60 * time.Second
-	// multimodalRequestTimeout bounds multimodal chat completions, which add the
-	// replace-media-urls, render, and encode stages: each image is fetched (e.g.
-	// from S3) and run through the encoder, so the round-trip runs well past the
-	// text-only budget. 600s matches the default client request timeout vLLM
-	// applies to its multimodal and chat-completion serving tests.
-	multimodalRequestTimeout = 600 * time.Second
-)
+const requestTimeout = 60 * time.Second
 
 // testImageURL and testImageURL2 are publicly accessible images used to
 // exercise multimodal requests that trigger the encode stage.
@@ -177,11 +168,7 @@ func runCoordinatorPipeline(body []byte, expectedSteps []string, expectedImages 
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	req.Header.Set("Content-Type", "application/json")
 
-	timeout := requestTimeout
-	if expectedImages > 0 {
-		timeout = multimodalRequestTimeout
-	}
-	client := &http.Client{Timeout: timeout}
+	client := &http.Client{Timeout: requestTimeout}
 	resp, err := client.Do(req)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	defer resp.Body.Close()
