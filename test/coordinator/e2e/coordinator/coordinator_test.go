@@ -183,8 +183,11 @@ func runCoordinatorPipeline(body []byte, expectedSteps []string, expectedImages 
 	// Diagnostic: dump the coordinator logs once the request has completed. The
 	// per-step timestamps show when the request reached the coordinator (relative
 	// to when it was sent) and how long each pipeline step took, so we can tell
-	// late-arrival (gateway) from slow processing (pipeline).
+	// late-arrival (gateway) from slow processing (pipeline). Also dump Envoy's
+	// access log so each request's gateway view (code/flags/cluster/upstream) is
+	// visible even on green runs, as a baseline to compare against a failure.
 	dumpDeploymentLogs(nsName, "llm-d-coordinator", "coordinator")
+	dumpDeploymentLogs(nsName, "envoy", "envoy")
 }
 
 // dumpDeploymentLogs writes a deployment's container logs to the Ginkgo output.
