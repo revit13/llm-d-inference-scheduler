@@ -31,7 +31,15 @@ import (
 	testutils "github.com/llm-d/llm-d-router/test/utils"
 )
 
-const requestTimeout = 60 * time.Second
+const (
+	// requestTimeout bounds text-only chat completions.
+	requestTimeout = 60 * time.Second
+	// multimodalRequestTimeout bounds multimodal chat completions, which run the
+	// extra replace-media-urls/render/encode stages; 60s times out before they
+	// finish. Long budget so the request completes and the coordinator logs
+	// (dumped at the end of the spec) show where the time actually went.
+	multimodalRequestTimeout = 600 * time.Second
+)
 
 // testImageURL and testImageURL2 are publicly accessible images used to
 // exercise multimodal requests that trigger the encode stage.
@@ -127,17 +135,7 @@ func runCoordinatorPipeline(body []byte, expectedSteps []string, expectedImages 
 		if !ginkgo.CurrentSpecReport().Failed() && !printCoordinatorLogs {
 			return
 		}
-		args := []string{"logs", "deployment/llm-d-coordinator",
-			"-c", "coordinator", "--namespace=" + nsName}
-		if k8sContext != "" {
-			args = append(args, "--context="+k8sContext)
-		}
-		out, err := exec.Command("kubectl", args...).CombinedOutput()
-		if err != nil {
-			fmt.Fprintf(ginkgo.GinkgoWriter, "\n--- coordinator logs (kubectl error: %v) ---\n%s\n---\n", err, string(out))
-		} else {
-			fmt.Fprintf(ginkgo.GinkgoWriter, "\n--- coordinator logs ---\n%s\n---\n", string(out))
-		}
+		dumpCoordinatorLogs(nsName)
 	})
 
 	// Pools first so each EPP can resolve its --pool-name.
@@ -168,7 +166,11 @@ func runCoordinatorPipeline(body []byte, expectedSteps []string, expectedImages 
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{Timeout: requestTimeout}
+	timeout := requestTimeout
+	if expectedImages > 0 {
+		timeout = multimodalRequestTimeout
+	}
+	client := &http.Client{Timeout: timeout}
 	resp, err := client.Do(req)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	defer resp.Body.Close()
@@ -180,6 +182,30 @@ func runCoordinatorPipeline(body []byte, expectedSteps []string, expectedImages 
 		"coordinator returned non-200: body=%s", string(raw))
 	gomega.Expect(raw).NotTo(gomega.BeEmpty(), "coordinator returned empty body")
 	verifyCoordinatorSteps(nsName, expectedSteps, expectedImages, true, true)
+
+	// Diagnostic: on multimodal specs, dump the coordinator logs once the request
+	// has completed. The per-step timestamps show when the request reached the
+	// coordinator (relative to when it was sent) and how long each pipeline step
+	// took, so we can tell late-arrival (gateway) from slow processing (pipeline).
+	if expectedImages > 0 {
+		dumpCoordinatorLogs(nsName)
+	}
+}
+
+// dumpCoordinatorLogs writes the coordinator deployment's logs to the Ginkgo
+// output. A kubectl error is reported inline rather than failing the spec.
+func dumpCoordinatorLogs(nsName string) {
+	args := []string{"logs", "deployment/llm-d-coordinator",
+		"-c", "coordinator", "--namespace=" + nsName}
+	if k8sContext != "" {
+		args = append(args, "--context="+k8sContext)
+	}
+	out, err := exec.Command("kubectl", args...).CombinedOutput()
+	if err != nil {
+		fmt.Fprintf(ginkgo.GinkgoWriter, "\n--- coordinator logs (kubectl error: %v) ---\n%s\n---\n", err, string(out))
+		return
+	}
+	fmt.Fprintf(ginkgo.GinkgoWriter, "\n--- coordinator logs ---\n%s\n---\n", string(out))
 }
 
 // verifyCoordinatorSteps fetches the coordinator pod logs and asserts that

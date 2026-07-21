@@ -96,9 +96,7 @@ func createEndPointPicker(phase, config string) []string {
 
 	objects := make([]string, 1, 8)
 	objects[0] = "ConfigMap/" + cmName
-	// The Service is created once by createStableServices; recreate only the
-	// rest (ServiceAccount, RoleBinding, Deployment) per spec.
-	objects = append(objects, applyManifest(manifest, eppSubstitutions(), "Service")...)
+	objects = append(objects, applyManifest(manifest, eppSubstitutions())...)
 	podsInDeploymentsReady(objects)
 	return objects
 }
@@ -179,9 +177,7 @@ func createCoordinator(config string) []string {
 	objects[0] = "ConfigMap/llm-d-coordinator-config"
 
 	docs := e2eutil.RunKustomize(coordinatorComponentDir)
-	// The Service is created once by createStableServices so its ClusterIP is
-	// stable across specs; recreate only the Deployment (and SA) per spec.
-	docs = e2eutil.FilterKinds(docs, "ConfigMap", "Service")
+	docs = e2eutil.FilterKinds(docs, "ConfigMap")
 	docs = e2eutil.SubstituteMany(docs, coordinatorSubstitutions())
 	docs = e2eutil.RemoveEmptyArgs(docs)
 	objects = append(objects, testutils.CreateObjsFromYaml(testConfig, docs, nsName)...)
@@ -192,11 +188,8 @@ func createCoordinator(config string) []string {
 }
 
 // waitForCoordinatorReady polls /readyz through Envoy until it returns 200,
-// confirming the freshly recreated coordinator pod is reachable through the
-// gateway before the test sends its request. The gateway Service is stable
-// across specs (see createStableServices), so this waits for the new pod to
-// appear behind it, not for Envoy to re-resolve a rotated ClusterIP.
-// (podsInDeploymentsReady already confirms the coordinator pod itself is ready.)
+// catching Envoy's STRICT_DNS resolution lagging behind the per-test Service
+// (podsInDeploymentsReady already confirms the coordinator pod itself is ready).
 func waitForCoordinatorReady() {
 	ginkgo.By("Waiting for coordinator to be reachable via gateway")
 	gomega.Eventually(func() bool {
@@ -229,37 +222,11 @@ func createEPPConfigMap(name, content string) {
 	}
 }
 
-func applyManifest(path string, subs map[string]string, excludeKinds ...string) []string {
+func applyManifest(path string, subs map[string]string) []string {
 	docs := testutils.ReadYaml(path)
 	docs = e2eutil.SubstituteMany(docs, subs)
 	docs = e2eutil.RemoveEmptyArgs(docs)
-	if len(excludeKinds) > 0 {
-		docs = e2eutil.FilterKinds(docs, excludeKinds...)
-	}
 	return testutils.CreateObjsFromYaml(testConfig, docs, getNamespace())
-}
-
-// createStableServices creates the coordinator and per-phase EPP Services once,
-// up front, and returns their ids for suite teardown. Envoy fronts these via
-// STRICT_DNS clusters and outlives the per-spec workload; recreating the
-// Services each spec would rotate their ClusterIPs and force Envoy to
-// re-resolve, so only the Deployments behind them churn per spec. Mirrors the
-// non-coordinator e2e, which creates the EPP Services once in its per-container
-// setup and recreates only the Deployment per test.
-func createStableServices() []string {
-	var objects []string
-
-	docs := e2eutil.RunKustomize(coordinatorComponentDir)
-	docs = e2eutil.FilterKinds(docs, "ConfigMap", "Deployment", "ServiceAccount")
-	docs = e2eutil.SubstituteMany(docs, coordinatorSubstitutions())
-	docs = e2eutil.RemoveEmptyArgs(docs)
-	objects = append(objects, testutils.CreateObjsFromYaml(testConfig, docs, getNamespace())...)
-
-	for _, manifest := range []string{encodeEPPManifest, prefillEPPManifest, decodeEPPManifest} {
-		objects = append(objects,
-			applyManifest(manifest, eppSubstitutions(), "ServiceAccount", "RoleBinding", "Deployment")...)
-	}
-	return objects
 }
 
 func eppSubstitutions() map[string]string {
