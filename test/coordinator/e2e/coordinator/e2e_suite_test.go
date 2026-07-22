@@ -135,7 +135,7 @@ var _ = ginkgo.BeforeSuite(func() {
 
 	// Coordinator and EPP Services/RBAC are created once and kept stable across
 	// specs (see createStableInfra).
-	stableInfraObjects = createStableInfra()
+	createStableInfra()
 })
 
 var _ = ginkgo.ReportAfterSuite("cleanup", func(report ginkgo.Report) {

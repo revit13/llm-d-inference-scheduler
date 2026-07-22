@@ -238,28 +238,24 @@ func applyManifest(path string, subs map[string]string, excludeKinds ...string) 
 }
 
 // createStableInfra creates the coordinator and per-phase EPP Services,
-// ServiceAccounts, and RoleBindings once, up front, and returns their ids for
-// suite teardown. Envoy fronts the Services via STRICT_DNS clusters and outlives
-// the per-spec workload; recreating a Service each spec would rotate its
-// ClusterIP and force Envoy to re-resolve, so only the Deployments behind them
-// churn per spec. Mirrors the non-coordinator e2e, which creates the EPP
-// Services and RBAC once in its setup and recreates only the Deployment per test.
-func createStableInfra() []string {
-	eppManifests := []string{encodeEPPManifest, prefillEPPManifest, decodeEPPManifest}
-	// Coordinator Service + ServiceAccount, plus Service + ServiceAccount +
-	// RoleBinding per EPP.
-	objects := make([]string, 0, 2+len(eppManifests)*3)
-
+// ServiceAccounts, and RoleBindings once, up front. It appends each created id to
+// stableInfraObjects as it goes rather than returning them at the end, so a
+// partial failure still leaves the already-created objects tracked for suite
+// teardown. Envoy fronts the Services via STRICT_DNS clusters and outlives the
+// per-spec workload; recreating a Service each spec would rotate its ClusterIP and
+// force Envoy to re-resolve, so only the Deployments behind them churn per spec.
+// Mirrors the non-coordinator e2e, which creates the EPP Services and RBAC once in
+// its setup and recreates only the Deployment per test.
+func createStableInfra() {
 	docs := e2eutil.RunKustomize(coordinatorComponentDir)
 	docs = e2eutil.FilterKinds(docs, "ConfigMap", "Deployment")
 	docs = e2eutil.SubstituteMany(docs, coordinatorSubstitutions())
 	docs = e2eutil.RemoveEmptyArgs(docs)
-	objects = append(objects, testutils.CreateObjsFromYaml(testConfig, docs, getNamespace())...)
+	stableInfraObjects = append(stableInfraObjects, testutils.CreateObjsFromYaml(testConfig, docs, getNamespace())...)
 
-	for _, manifest := range eppManifests {
-		objects = append(objects, applyManifest(manifest, eppSubstitutions(), "Deployment")...)
+	for _, manifest := range []string{encodeEPPManifest, prefillEPPManifest, decodeEPPManifest} {
+		stableInfraObjects = append(stableInfraObjects, applyManifest(manifest, eppSubstitutions(), "Deployment")...)
 	}
-	return objects
 }
 
 func eppSubstitutions() map[string]string {
