@@ -179,8 +179,8 @@ func createCoordinator(config string) []string {
 	objects[0] = "ConfigMap/llm-d-coordinator-config"
 
 	docs := e2eutil.RunKustomize(coordinatorComponentDir)
-	// The Service and ServiceAccount are created once by createStableInfra so the
-	// ClusterIP is stable across specs; recreate only the Deployment per spec.
+	// Service and ServiceAccount are created once by createStableInfra; recreate
+	// only the Deployment per spec.
 	docs = e2eutil.FilterKinds(docs, "ConfigMap", "Service", "ServiceAccount")
 	docs = e2eutil.SubstituteMany(docs, coordinatorSubstitutions())
 	docs = e2eutil.RemoveEmptyArgs(docs)
@@ -194,9 +194,9 @@ func createCoordinator(config string) []string {
 // waitForCoordinatorReady polls /readyz through Envoy until it returns 200,
 // confirming the freshly recreated coordinator pod is reachable through the
 // gateway before the test sends its request. The gateway Service is stable
-// across specs (see createStableInfra), so this waits for the new pod to
-// appear behind it, not for Envoy to re-resolve a rotated ClusterIP.
-// (podsInDeploymentsReady already confirms the coordinator pod itself is ready.)
+// across specs (see createStableInfra), so this waits only for the new pod to
+// appear behind it. (podsInDeploymentsReady already confirms the coordinator
+// pod itself is ready.)
 func waitForCoordinatorReady() {
 	ginkgo.By("Waiting for coordinator to be reachable via gateway")
 	gomega.Eventually(func() bool {

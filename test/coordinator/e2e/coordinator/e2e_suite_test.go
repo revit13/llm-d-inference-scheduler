@@ -133,9 +133,8 @@ var _ = ginkgo.BeforeSuite(func() {
 
 	rendererObjects = createRenderer()
 
-	// Coordinator and EPP Services, ServiceAccounts, and RoleBindings are created
-	// once and kept stable across specs so Envoy's STRICT_DNS clusters never have
-	// to re-resolve a rotated ClusterIP.
+	// Coordinator and EPP Services/RBAC are created once and kept stable across
+	// specs (see createStableInfra).
 	stableInfraObjects = createStableInfra()
 })
 
