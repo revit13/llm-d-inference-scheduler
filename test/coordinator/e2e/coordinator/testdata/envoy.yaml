@@ -87,6 +87,11 @@ data:
                           log_format:
                             text_format_source:
                               inline_string: "[envoy] %START_TIME(%s.%3f)% %REQ(:METHOD)% %REQ(:PATH)% code=%RESPONSE_CODE% flags=%RESPONSE_FLAGS% cluster=%UPSTREAM_CLUSTER% upstream=%UPSTREAM_HOST% epp-phase=%REQ(EPP-PHASE)% id=%REQ(X-REQUEST-ID)% dur=%DURATION%\n"
+                    access_log_options:
+                      # Emit periodic access-log entries for in-flight streams so a
+                      # request that hangs (never terminates) is still recorded,
+                      # instead of only being logged on completion/disconnect.
+                      access_log_flush_interval: 5s
                     route_config:
                       name: vllm
                       virtual_hosts:
