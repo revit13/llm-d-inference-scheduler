@@ -46,7 +46,7 @@ three: what this page does not list is on EPP's endpoint (see [Metrics](metrics.
 
 The `step` and `upstream` labels share most of their values, but measure different boundaries: a step is a pipeline stage, while an upstream is a single outbound call. They diverge where a stage is not one call: the `encode` step fans out one concurrent sub-request per multimodal entry, so a request with six images records one `step="encode"` observation and six `upstream="encode"` observations.
 
-- **`step`**: A stage of the internal pipeline, observed once per request per stage. Covers local work and all outbound calls made by that stage. Values: `render`, `replace-media-urls`, `encode`, `prefill`, `conditional-decode`, `decode`. See [Coordinator Architecture](coordinator_architecture.md).
+- **`step`**: A stage of the internal pipeline, observed once per request per stage. Covers local work and all outbound calls made by that stage. The label value is the step's registered `Name()` (see `pipeline.Register`), so its cardinality is bounded by the set of registered pipeline steps. Values in the built-in registry: `render`, `replace-media-urls`, `encode`, `prefill`, `conditional-decode`, `decode`. See [Coordinator Architecture](coordinator_architecture.md).
 - **`upstream`**: A single outbound call, whatever its destination. Values: `render`, `media-fetch`, `encode`, `prefill`, `conditional-decode`, `decode`. A step that gains an outbound call gains a value here.
 - **`path`**: The sequence of disaggregation phases a request actually executed. Values: `decode-only`, `prefill-decode`, `encode-prefill-decode`. `encode-decode` is intentionally unreachable because encode implies prefill.
 
@@ -80,9 +80,9 @@ error, 413, invalid JSON) count as `bad_request` with `model_name=unknown`.
 |---|---|---|
 | `request_total` | Counter | Every inbound client request, including malformed ones. |
 | `request_error_total` | Counter | Failed requests; adds label `error_code`. |
-| `request_duration_seconds` | Histogram | End-to-end request latency. |
-| `request_size_bytes` | Histogram | Request body size. |
-| `request_input_tokens` | Histogram | Prompt token count, recorded after the render step. |
+| `request_duration_seconds` | Histogram | End-to-end request latency; `GeneralLatencyBuckets` (5 ms to 1 h). |
+| `request_size_bytes` | Histogram | Request body size; `RequestSizeBuckets` (64 B to 1 GiB, powers of two). |
+| `request_input_tokens` | Histogram | Prompt token count, recorded after the render step; `TokenCountBuckets` (1 to ~1 M). |
 | `request_running` | Gauge | Requests in flight. |
 
 ### Pipeline step family
@@ -93,7 +93,7 @@ Recorded by the pipeline executor, which brackets every step it runs. This famil
 
 | Name | Type | Notes |
 |---|---|---|
-| `step_duration_seconds` | Histogram | Per-step latency. |
+| `step_duration_seconds` | Histogram | Per-step latency; `GeneralLatencyBuckets` (5 ms to 1 h). |
 | `step_errors_total` | Counter | Step failures; adds label `error_code`. |
 | `step_running` | Gauge | Requests currently executing the step. Saturation rather than latency: `decode` stays in flight for the whole stream, so its value is the number of active streams. |
 
@@ -109,7 +109,7 @@ Recorded by every step that calls out: render to the renderer service, replace-m
 | Name | Type | Notes |
 |---|---|---|
 | `upstream_request_total` | Counter | Outbound calls, one per call (encode contributes one per image, media-fetch one per URL). |
-| `upstream_request_duration_seconds` | Histogram | Latency of one call. |
+| `upstream_request_duration_seconds` | Histogram | Latency of one call; `GeneralLatencyBuckets` (5 ms to 1 h). |
 
 **Key details:**
 *   **Fan-out:** A single client request can result in multiple outbound calls (e.g., three image fetches, one conditional-decode probe, three encode calls, one prefill, one decode). For the fan-out upstreams this is the only per-call latency available, since the step duration covers the whole concurrent batch.
@@ -165,17 +165,20 @@ Neither the coordinator nor EPP tracks per-request image count or size. Image co
 
 ## Cardinality
 
-`model_name` labels every request-family metric, three of them histograms, and the handler takes it
-straight from the request body without validation. Each distinct value creates its own set of series,
-and a histogram multiplies that by its bucket count, so a client looping over invented model names
-grows the coordinator's memory without bound. This is reachable by any client, and it is a mitigation
-the implementation has to carry.
+`model_name` labels every request-family metric and `execution_path_total` — every metric that
+carries `model_name` — and the handler takes it straight from the request body without validation.
+Each distinct value creates its own set of series, and a histogram multiplies that by its bucket
+count, so a client looping over invented model names grows the coordinator's memory without bound.
+This is reachable by any client, and it is a mitigation the implementation has to carry.
 
-Capping the distinct values is the approach that fits: EPP caps `model_name` at 1000 over the process
-lifetime and reports further values as `other`, and matching that keeps the two components
-consistent. An allowlist has no source of truth here, since the coordinator's config carries no model
-list and the coordinator is otherwise model-agnostic. The overflow value must not be `unknown`, which
-already means the request carried no model at all.
+Capping the distinct values is the approach that fits: `model_name` is capped at 1000 over the
+process lifetime and further values are reported as `other`. The bounded-label helper lives in
+[`pkg/common/observability/metrics/cardinality.go`](../pkg/common/observability/metrics/cardinality.go)
+(`BoundedLabel`, `OverflowValue = "other"`) and is instantiated with the same cap by both
+`pkg/coordinator/metrics/cardinality.go` and `pkg/epp/metrics/cardinality.go`, so the two components
+share one guard. An allowlist has no source of truth here, since the coordinator's config carries no
+model list and the coordinator is otherwise model-agnostic. The overflow value must not be `unknown`,
+which already means the request carried no model at all.
 
 ## Related documentation
 
