@@ -48,7 +48,7 @@ The `step` and `upstream` labels share most of their values, but measure differe
 
 - **`step`**: A stage of the internal pipeline, observed once per request per stage. Covers local work and all outbound calls made by that stage. Values: `render`, `replace-media-urls`, `encode`, `prefill`, `conditional-decode`, `decode`. See [Coordinator Architecture](coordinator_architecture.md).
 - **`upstream`**: A single outbound call, whatever its destination. Values: `render`, `media-fetch`, `encode`, `prefill`, `conditional-decode`, `decode`. A step that gains an outbound call gains a value here.
-- **`decision_type`**: The sequence of disaggregation phases a request actually executed. Values: `decode-only`, `prefill-decode`, `encode-prefill-decode`.
+- **`path`**: The sequence of disaggregation phases a request actually executed. Values: `decode-only`, `prefill-decode`, `encode-prefill-decode`. `encode-decode` is intentionally unreachable because encode implies prefill.
 
 ## Error classes
 
@@ -61,7 +61,7 @@ The `error_code` label on `request_error_total` and `step_errors_total` uses fou
 
 **Key behaviors:**
 - The conditional-decode probe's HTTP 412 (the worker declined to serve it) is handled internally and is **not** an error. It is tracked separately by [`conditional_decode_probes_total`](#conditional_decode_probes_total-counter).
-- `upstream_4xx` and `upstream_5xx` are recorded for the `render`, `prefill`, and `encode` steps, which read the upstream status before continuing. The `decode` and `conditional-decode` steps stream the upstream response straight to the client, and today only the conditional-decode probe inspects its status (to detect the 412 miss), so a decode-phase status error reaches the client uncounted. The status is available to both: it can be read in the reverse proxy's `ModifyResponse` hook before any bytes are forwarded. What stays uncountable is a failure that occurs after streaming has begun, since the 200 and a partial body are already on the wire.
+- `upstream_4xx` and `upstream_5xx` are recorded for every step that calls out, including `decode` and `conditional-decode`: their reverse proxy captures the upstream status in `ModifyResponse` and transport failures in `ErrorHandler`, and both steps translate a 4xx/5xx or transport error into an `UpstreamStreamedError` before any bytes are forwarded. What stays uncountable is a failure that surfaces after streaming has begun, since the 200 and a partial body are already on the wire.
 
 ## Metrics catalog
 
@@ -82,7 +82,7 @@ error, 413, invalid JSON) count as `bad_request` with `model_name=unknown`.
 | `request_error_total` | Counter | Failed requests; adds label `error_code`. |
 | `request_duration_seconds` | Histogram | End-to-end request latency. |
 | `request_size_bytes` | Histogram | Request body size. |
-| `response_size_bytes` | Histogram | Bytes streamed to the client, measured by a counting `ResponseWriter` wrapper in the handler rather than by parsing the body. |
+| `request_input_tokens` | Histogram | Prompt token count, recorded after the render step. |
 | `request_running` | Gauge | Requests in flight. |
 
 ### Pipeline step family
@@ -116,38 +116,35 @@ Recorded by every step that calls out: render to the renderer service, replace-m
 *   **No `upstream_request_error_total`:** A failed call aborts its step and is already counted by `step_errors_total`.
 *   **Conditional-decode:** The probe gets its own value rather than counting as `decode`, keeping fan-out ratios accurate.
 
-### Disaggregation decision and conditional decode
+### Execution path and conditional decode
 
-#### `disagg_decision_total` (Counter)
-*   **Labels:** `model_name`, `decision_type` (`decode-only`, `prefill-decode`, `encode-prefill-decode`)
-*   **Description:** Records which phases actually ran for a request. Unlike EPP, it lacks `encode-decode` because encode always implies prefill in the coordinator.
+#### `execution_path_total` (Counter)
+*   **Labels:** `model_name`, `path` (`decode-only`, `prefill-decode`, `encode-prefill-decode`)
+*   **Description:** Records which set of disaggregation phases actually ran for a client request. `encode-decode` is intentionally unreachable because encode implies prefill in the coordinator.
 
 #### `conditional_decode_probes_total` (Counter)
-*   **Labels:** `result` (`served` or `deferred`)
+*   **Labels:** `result` (`served`, `deferred`, or `error`)
 *   **Description:** Counts conditional-decode probes by the worker's answer. The coordinator sees the status code, not the reason behind it.
     *   `served`: The worker handled the request itself, whether because the prompt was cached or too short to disaggregate. The pipeline stops early (`decode-only`).
     *   `deferred`: The worker returned HTTP 412. The pipeline continues to encode/prefill/decode.
-*   **Note:** Not redundant with `disagg_decision_total` since a deferred probe does not indicate whether the subsequent path was `prefill-decode` or `encode-prefill-decode`.
+    *   `error`: Any other 4xx/5xx status or a transport failure on the probe. The step then returns an `UpstreamStreamedError` and the request is classified in the `upstream_4xx`/`upstream_5xx`/`internal` error buckets.
+*   **Note:** Not redundant with `execution_path_total` since a deferred probe does not indicate whether the subsequent path was `prefill-decode` or `encode-prefill-decode`.
 
 ## Relationship to EPP metrics
 
 | Coordinator metric | EPP counterpart | Difference |
 |---|---|---|
 | Request family (`llm_d_coordinator_request_total`, etc.) | `llm_d_epp_*` (same names) | Coordinator counts single client requests at entry; EPP counts every sub-request reaching the gateway. EPP adds flow-control labels (`fairness_id`, `priority`). |
-| `llm_d_coordinator_disagg_decision_total` | `llm_d_epp_disagg_decision_total` | Coordinator counts phases *executed*; EPP counts routing decisions *made* and adds plugin labels. |
+| `llm_d_coordinator_execution_path_total` | `llm_d_epp_disagg_decision_total` | Coordinator observes the phases that actually ran on the client request; EPP records the routing decision that was made and adds plugin labels. |
 | `llm_d_coordinator_step_*`, `llm_d_coordinator_upstream_request_*`, `llm_d_coordinator_conditional_decode_probes_total` | None | Unique to coordinator. |
 
 **EPP-only metrics:** Scheduling, flow control, and pool aggregates have no coordinator counterpart. EPP's token counts and TTFT do, but they are per leg: the same prompt reaches EPP on more than one leg, and decode-leg TTFT starts after render, encode, and prefill have finished, so neither describes a client request. Only the coordinator sees a client request as one request. See [Deliberate omissions](#deliberate-omissions) for what it could report and why it does not today.
 
 ## Deliberate omissions
 
-### Token counts
+### Output and cached token counts
 
-The coordinator emits no token-count metrics. Output and cached counts live in the vLLM `usage` block, and reading it means parsing the streamed SSE response, which the decode step does not do: it proxies bytes straight to the client, and `response_size_bytes` is the byte-level stand-in.
-
-Input tokens are a different case. The renderer returns the token IDs, so the count is already in hand after render, with no response parsing and no dependency on EPP.
-
-*Future candidate:* `request_input_tokens` (Histogram, after render). It is the per-client-request prompt size, which EPP cannot report from its per-leg view, and it correlates prompt size with encode fan-out without a cross-component join.
+The coordinator emits no output or cached token-count metrics. Those values live in the vLLM `usage` block, and reading them means parsing the streamed SSE response, which the decode step does not do: it proxies bytes straight to the client. Input tokens are recorded (see [`request_input_tokens`](#request-family)): the renderer returns the token IDs, so the count is in hand after render, with no response parsing and no dependency on EPP.
 
 ### Time to first token
 
