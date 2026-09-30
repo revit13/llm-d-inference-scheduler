@@ -455,6 +455,7 @@ Full P/D and E/P/D configurations that combine the decider and gate roles are in
 #### Always-Disagg PD Decider
 The `always-disagg-pd-decider` is a simpler alternative used mainly for testing or benchmarking.
 It always triggers disaggregation, regardless of prefix cache state or prompt characteristics.
+It is also the PD decider for [SGLang decode servers](#sglang-decode-servers).
 
 **Configuration example:**
 
@@ -466,6 +467,25 @@ It always triggers disaggregation, regardless of prefix cache state or prompt ch
 > This plugin accepts no parameters.
 
 It’s useful for validating end-to-end prefill/decode splitting and comparing system performance under forced disaggregation.
+
+#### SGLang Decode Servers
+
+> [!NOTE]
+> When an SGLang server is running in decode mode (`--disaggregation-mode=decode`), it always requires a KV cache transfer from a prefill server. It lacks local prefill support. When KV cache parameters are not in the request, the SGLang server rejects such requests with an HTTP `400`: `Invalid request: Disaggregated request received without bootstrap room id.`
+>
+> SGLang disaggregation servers do not have an option to provide prefill locally like vLLM does, and they do not have a KV cache error policy either.
+
+`prefix-based-pd-decider` is not supported with SGLang. SGLang uses `always-disagg-pd-decider`:
+
+```yaml
+- type: always-disagg-pd-decider
+- type: disagg-profile-handler
+  parameters:
+    deciders:
+      prefill: always-disagg-pd-decider
+```
+
+The config must also define a `prefill` scheduling profile, as in the [P/D Configuration](#pd-configuration) example. Without it, the handler skips the prefill stage and SGLang rejects the decode-only request.
 
 ### Encode Deciders
 

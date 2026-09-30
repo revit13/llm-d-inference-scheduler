@@ -397,6 +397,9 @@ default for any `Prefer: if-available` request so a missing gate surfaces as the
 cache-miss fallback rather than a silent forward. See
 [disaggregation.md](disaggregation.md#prefix-based-pd-decider) for configuration.
 
+> [!NOTE]
+> The `conditional-decode` step is not supported with the `kv-sglang` connector. See [disaggregation.md](disaggregation.md#sglang-decode-servers).
+
 ### KV and EC transfer protocols
 
 Because the coordinator builds the prefill and decode request bodies itself, it must
